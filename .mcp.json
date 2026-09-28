@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "blombo-workspace": {
+      "type": "http",
+      "url": "https://mcp.blombo.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${BLOMBO_MCP_TOKEN}"
+      }
+    }
+  }
+}
