@@ -187,6 +187,23 @@ const FLOWS = {
     await sleep(4000)
     await shot("60-home-aquarium")
   },
+  /** One island (ZONE=<key>): from the harbour square, a side lookout and a far view. Shots: zone-<key>-*. */
+  async zone(page, shot) {
+    const key = process.env.ZONE ?? "willow"
+    const centres = { lantern: [0, 0, 0], willow: [420, 0, 1], coral: [840, 0, 2], frost: [0, 420, 3], ember: [420, 420, 4], moon: [840, 420, 5] }
+    const [cx, cz, index] = centres[key]
+    const phase = process.env.PHASE ?? "day"
+    await page.goto(BASE + `?save=late&at=pier&phase=${phase}&weather=clear`)
+    await until(page, () => window.__harness?.store?.me && window.__harness.world?.zones.size > 0)
+    const spots = (process.env.SPOTS ?? "0,52,0;0,20,0;-40,10,0.9;40,10,-0.9;0,70,0").split(";").map((s) => s.split(",").map(Number))
+    let k = 0
+    for (const [dx, dz, yaw] of spots) {
+      await teleport(page, cx + dx, cz + dz, yaw)
+      await until(page, (i) => window.__harness.world.zones.has(i), index, 30000)
+      await sleep(1500)
+      await shot(`zone-${key}-${phase}-${k++}`)
+    }
+  },
   async ride(page, shot) {
     await page.goto(BASE + "?save=mid&at=captain&phase=day")
     await until(page, () => window.__harness?.store?.me && window.__harness.world?.zones.size > 0)

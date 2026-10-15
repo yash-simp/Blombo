@@ -80,6 +80,11 @@ const PLACES: Record<string, [number, number, number]> = {
   captain: [3, 62, -0.6],
   plaza: [0, 30, Math.PI],
   shore: [-14, 2, -0.4],
+  willow: [420, 52, 0],
+  coral: [840, 52, 0],
+  frost: [0, 472, 0],
+  ember: [420, 472, 0],
+  moon: [840, 472, 0],
 }
 const at = PLACES[q.get("at") ?? (preset === "new" ? "spawn" : "pier")] ?? PLACES.spawn!
 player.x = at[0]

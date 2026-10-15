@@ -358,7 +358,8 @@ export class World {
     // fireflies over the meadows and the shore
     const rng = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
     const r = rng(1234 + index)
-    const land = data.instances.filter((i) => i[0] === "flowers_yellow" || i[0] === "reeds" || i[0] === "cattails" || i[0] === "bush_a")
+    const FIREFLY_PROPS = new Set(["flowers_yellow", "flowers_pink", "reeds", "cattails", "bush_a", "flowers_glow", "mushrooms_glow", "bush_moon", "tree_palm", "bush_ember", "bush_snow"])
+    const land = data.instances.filter((i) => FIREFLY_PROPS.has(i[0]))
     for (let k = 0; k < 140 && land.length; k++) {
       const pick = land[Math.floor(r() * land.length)]!
       flies.add(center.x + pick[1] + (r() - 0.5) * 4, pick[2] + 0.6 + r() * 1.8, center.z + pick[3] + (r() - 0.5) * 4, 0.42, k % 5 === 0 ? 0x9fffe0 : 0xd8ff7a)
