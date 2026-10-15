@@ -22,7 +22,17 @@ coll = bpy.data.collections.new("zone"); bpy.context.scene.collection.children.l
 objs = []
 t_objs = []
 for name, part in zone.terrain_chunks():
-    a = Asset(name); a.add(part); o = a.build(ao=False, sharp_angle=30, collection=coll); o.name = name
+    normals = part.normals
+    a = Asset(name); a.add(part); o = a.build(ao=False, sharp_angle=180, collection=coll); o.name = name
+    # smooth faces take the height function's normal at each corner; steep faces and skirts are flat
+    # (their own normal; a flat face also splits the corner normals of the vertices it shares)
+    me = o.data
+    corner = [None] * len(me.loops)
+    for p in me.polygons:
+        p.use_smooth = not steep_face(p.normal)
+        for k in p.loop_indices:
+            corner[k] = normals[me.loops[k].vertex_index] if p.use_smooth else p.normal.copy()
+    me.normals_split_custom_set(corner)
     objs.append(o)
     if not name.endswith("__lod"):
         t_objs.append(o)

@@ -3,7 +3,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { createScriptTest } from "../tools/scriptTest.mjs"
-import { FIRST_CATCH_SPECIES, RODS, minFightMs } from "../server/rules.ts"
+import { FIRST_CATCH_SPECIES, RARITY_DIFFICULTY, REELS, RODS, minFightMs, tapPower } from "../server/rules.ts"
 
 type Me = { coins: number; tut: number; giftReady: boolean; loginReady: boolean; rod: number; rods: number; catches: number; zones: number }
 type Bag = { cap: number; fish: number[][] }
@@ -44,7 +44,12 @@ export async function catchOne(room: Awaited<ReturnType<typeof createScriptTest>
   ann.send("Hook", c.id)
   await room.tick(2)
   assert.equal(ann.events("Hooked").length, hooked + 1, "hooked")
-  await room.tick(ticksFor(minFightMs(c.d, RODS[0]!.power)))
+  // The fish's real difficulty and the player's gear set the fastest legal fight.
+  const f = (await room.run("server/game.ts", (m, id) => {
+    const p = m.live.get(id)
+    return { d: p.fishing.d, rod: p.save.rod, reel: p.save.reel }
+  }, ann.userId)) as { d: number; rod: number; reel: number }
+  await room.tick(ticksFor(minFightMs(f.d, tapPower(f.rod, f.reel))))
   const caught = ann.events("Caught").length
   ann.send("Reel", { id: c.id, ok: true, perfect: true })
   await room.tick(2)
@@ -173,10 +178,22 @@ test("reeling faster than the fight allows is rejected", async () => {
   ann.send("Cast", { x: 0, z: -12, p: 1 })
   await room.tick(2)
   const c = (ann.events("CastOk") as CastOk[])[0]!
-  await room.tick(ticksFor(c.bite))
+  assert.ok(c.win >= 3000, "a generous strike window")
+  // Strike late in the window: still hooked.
+  await room.tick(ticksFor(c.bite + c.win - 300))
   ann.send("Hook", c.id)
   await room.tick(2)
   assert.equal(ann.events("Hooked").length, 1)
+  // Even a Common on the best rod and reel takes a handful of taps: an instant Reel is impossible.
+  const rod = RODS.length - 1
+  const reel = REELS.length - 1
+  assert.ok(minFightMs(RARITY_DIFFICULTY[0]!, tapPower(rod, reel)) - 100 > 3 * TICK, "the bound is above the test's own delay")
+  await room.run("server/game.ts", (m, id, d, best, bestReel) => {
+    const p = m.live.get(id)
+    p.fishing.d = d
+    p.save.rod = best
+    p.save.reel = bestReel
+  }, ann.userId, RARITY_DIFFICULTY[0], rod, reel)
   ann.send("Reel", { id: c.id, ok: true, perfect: true })
   await room.tick(2)
   assert.equal(ann.events("Caught").length, 0)

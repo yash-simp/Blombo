@@ -1,12 +1,13 @@
 <script setup lang="ts">
-// Bottom centre: the hint, the reel bar during a fight, the big action button (cast / hook / hold),
-// the bait chip and the talk button near a keeper. Keys: E acts, Q talks.
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+// Bottom centre: the hint, the tap meter during a fight, the big action button (cast / hook / tap), the
+// bait chip, the small Reel in chip while waiting and the talk button near a keeper. Keys: E acts, Q talks.
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import type { IGame } from "@blombo/game-runtime"
 import { t } from "@/text"
 import Icon from "./Icon.vue"
 import { fishUi, type Fishing } from "../fishing/controller"
 import { store } from "../net"
+import { FIGHT } from "../../server/rules.ts"
 import { RARITY_CSS, baitName } from "./format"
 
 const props = defineProps<{ game: IGame; fishing: Fishing; npcName: string; showCast: boolean; offer?: { label: string; icon: string; run: () => void } | null }>()
@@ -14,6 +15,7 @@ const emit = defineEmits<{ talk: []; bait: [] }>()
 
 const actionButton = ref<HTMLButtonElement | null>(null)
 const talkButton = ref<HTMLButtonElement | null>(null)
+const meter = ref<HTMLElement | null>(null)
 const offs: (() => void)[] = []
 
 onMounted(() => {
@@ -37,11 +39,11 @@ const label = computed(() => {
       return t("hud.cast")
     case "flying":
     case "waiting":
-      return t("hud.reel_in")
+      return t("hud.waiting")
     case "bite":
       return t("hud.hook")
     case "reeling":
-      return t("hud.hold")
+      return t("hud.tap")
     case "landing":
       return t("hud.wait")
     default:
@@ -62,37 +64,74 @@ const baitCount = computed(() => {
   if (id === "worm") return "∞"
   return String(store.me?.bait.find((b) => b.id === id)?.n ?? 0)
 })
+const waiting = computed(() => fishUi.phase === "waiting" || fishUi.phase === "flying")
+/** The bait chip only between casts: a slip onto it mid-fight would open the shop and lose the fish. */
+const baitOpen = computed(() => fishUi.phase === "idle" || fishUi.phase === "charging")
+
+// ── the tap meter: red when the fish is winning, green when it is nearly in ──
 const fight = computed(() => fishUi.fight)
+const low = computed(() => (fight.value?.progress ?? 1) < 0.2)
 const fightStyle = computed(() => {
   const f = fight.value
   if (!f) return {}
+  const hue = Math.round(Math.max(0, Math.min(1, f.progress)) * 120)
   return {
-    "--zone": String(f.zone),
-    "--w": String(f.width),
-    "--fish": String(f.fish),
     "--prog": String(f.progress),
+    "--start": String(FIGHT.start),
+    "--fill": `hsl(${hue} 85% 52%)`,
+    "--fill-dark": `hsl(${hue} 80% 36%)`,
     "--rarity": RARITY_CSS[f.rarity] ?? "#fff",
   }
 })
+/** A "+" pops off the fill on every counted tap (the last few stay animating). */
+const pops = ref<{ id: number; x: number; dx: number }[]>([])
+watch(
+  () => fishUi.fight?.taps ?? 0,
+  (taps, before) => {
+    if (!taps || taps <= before) {
+      if (!taps) pops.value = []
+      return
+    }
+    pops.value = [...pops.value.slice(-4), { id: taps, x: fishUi.fight?.progress ?? 0, dx: Math.round(Math.random() * 60 - 30) }]
+    meter.value?.animate([{ transform: "scale(1.045)" }, { transform: "scale(1)" }], { duration: 140, easing: "ease-out" })
+    actionButton.value?.animate([{ transform: "scale(0.9)" }, { transform: "scale(1)" }], { duration: 120, easing: "ease-out" })
+  },
+)
+/** The meter itself is a big tap target too. */
+function tapMeter(): void {
+  if (fishUi.phase === "reeling") props.fishing.press()
+}
 </script>
 
 <template>
   <div class="ui-group ui-group--bottom dock">
     <p v-if="fishUi.hint && showCast" class="dock__hint" :class="{ 'dock__hint--hot': fishUi.phase === 'bite' }">{{ t(fishUi.hint) }}</p>
-    <div v-if="fight" class="reel" :style="fightStyle" role="presentation">
-      <div class="reel__bar">
-        <div class="reel__zone" :class="{ 'reel__zone--in': fight.inside }"></div>
+    <div
+      v-if="fight"
+      ref="meter"
+      class="reel"
+      :class="{ 'reel--low': low, 'reel--surge': fight.surge }"
+      :style="fightStyle"
+      role="presentation"
+      @pointerdown.prevent="tapMeter"
+    >
+      <div class="reel__track">
+        <div class="reel__fill"></div>
+        <i v-if="fight.perfect" class="reel__start"></i>
         <div class="reel__fish"><Icon name="fish" /></div>
+        <span v-for="pop in pops" :key="pop.id" class="reel__pop" :style="{ '--x': String(pop.x), '--dx': pop.dx + 'px' }">+</span>
       </div>
-      <div class="reel__meter"><div class="reel__fill"></div></div>
       <span v-if="fight.perfect" class="reel__perfect">{{ t("hud.perfect") }}</span>
     </div>
     <button v-if="offer && fishUi.phase === 'idle'" type="button" class="offer" @click="offer.run()"><Icon :name="offer.icon" />{{ offer.label }}</button>
+    <!-- the action button sits in the middle column, so chips coming and going never move it -->
     <div class="dock__row">
-      <button v-show="showCast" type="button" class="chip chip--bait" :aria-label="t('hud.bait') + ': ' + bait" @click="emit('bait')">
-        <Icon :name="baitIcon" />
-        <span>{{ baitCount }}</span>
-      </button>
+      <div class="dock__side dock__side--left">
+        <button v-show="showCast && baitOpen" type="button" class="chip chip--bait" :aria-label="t('hud.bait') + ': ' + bait" @click="emit('bait')">
+          <Icon :name="baitIcon" />
+          <span>{{ baitCount }}</span>
+        </button>
+      </div>
       <button
         v-show="showCast"
         ref="actionButton"
@@ -107,11 +146,17 @@ const fightStyle = computed(() => {
         <span class="action__label">{{ label }}</span>
         <span class="action__key">{{ t("hud.key_cast") }}</span>
       </button>
-      <button v-show="!!npcName && fishUi.phase === 'idle'" ref="talkButton" type="button" class="chip chip--talk" :aria-label="t('hud.talk_to', { name: npcName })">
-        <Icon name="scroll" />
-        <span>{{ t("hud.talk") }}</span>
-        <span class="action__key">{{ t("hud.key_talk") }}</span>
-      </button>
+      <div class="dock__side">
+        <button v-if="showCast && waiting" type="button" class="chip chip--reelin" :aria-label="t('hud.reel_in')" @click="fishing.reelIn()">
+          <Icon name="rod" />
+          <span>{{ t("hud.reel_in") }}</span>
+        </button>
+        <button v-show="!!npcName && fishUi.phase === 'idle'" ref="talkButton" type="button" class="chip chip--talk" :aria-label="t('hud.talk_to', { name: npcName })">
+          <Icon name="scroll" />
+          <span>{{ t("hud.talk") }}</span>
+          <span class="action__key">{{ t("hud.key_talk") }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -122,7 +167,7 @@ const fightStyle = computed(() => {
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  width: 700px;
+  width: 960px;
 }
 .dock__hint {
   margin: 0;
@@ -158,11 +203,21 @@ const fightStyle = computed(() => {
   height: 56px;
 }
 .dock__row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  pointer-events: none;
+}
+.dock__side {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 18px;
-  pointer-events: none;
+  min-width: 0;
+}
+.dock__side--left {
+  justify-content: flex-end;
 }
 .chip {
   display: flex;
@@ -262,74 +317,146 @@ const fightStyle = computed(() => {
   background: radial-gradient(circle at 35% 30%, #fff3a0, #ffb52e 70%);
   animation: pulse 0.3s ease-in-out infinite alternate;
 }
-.action--reeling {
-  background: radial-gradient(circle at 35% 30%, #ff9fd6, #e8467a 70%);
-}
 .action--landing {
   filter: saturate(0.3);
 }
 .action--bad {
   background: radial-gradient(circle at 35% 30%, #ffb3a0, #e8463a 70%);
 }
+.action--reeling {
+  background: radial-gradient(circle at 35% 30%, #ff9fd6, #e8467a 70%);
+}
+.action--reeling .action__label {
+  font-size: 64px;
+  animation: tap-pulse 0.32s ease-in-out infinite alternate;
+}
+.chip--reelin {
+  max-width: 340px;
+  margin-left: 22px;
+  background: linear-gradient(#d9f0ff, #9fd2ff);
+  font-size: 40px;
+}
+.chip--reelin :deep(.icon) {
+  width: 40px;
+  height: 40px;
+}
 .reel {
   position: relative;
-  width: 680px;
-  padding: 14px 18px 18px;
+  width: 940px;
+  padding: 12px;
   border: 5px solid #0b1a2a;
-  border-radius: 28px;
+  border-radius: 30px;
   background: rgb(9 27 41 / 88%);
   box-shadow: 0 8px 0 #0b1a2a;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
 }
-.reel__bar {
+.reel--low {
+  border-color: #ff4a3a;
+  box-shadow: 0 8px 0 #0b1a2a, 0 0 26px rgb(255 74 58 / 70%);
+  animation: shake 0.22s linear infinite;
+}
+.reel__track {
   position: relative;
-  height: 72px;
-  border-radius: 20px;
-  background: linear-gradient(#1e5a8a, #123a5a);
-  overflow: hidden;
+  height: 112px;
+  border-radius: 24px;
+  background: linear-gradient(#123a5a, #0b2740);
+  box-shadow: inset 0 4px 0 rgb(0 0 0 / 35%);
 }
-.reel__zone {
+.reel__fill {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: calc((var(--zone) - var(--w) / 2) * 100%);
-  width: calc(var(--w) * 100%);
-  border-radius: 14px;
-  background: rgb(95 255 138 / 55%);
-  border: 4px solid #5fff8a;
+  inset: 0 auto 0 0;
+  width: calc(var(--prog) * 100%);
+  border-radius: 24px;
+  background: linear-gradient(var(--fill), var(--fill-dark));
+  box-shadow: inset 0 6px 0 rgb(255 255 255 / 30%);
+  transition: width 0.08s linear;
 }
-.reel__zone--in {
-  background: rgb(95 255 138 / 85%);
+.reel__start {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  left: calc(var(--start) * 100% - 3px);
+  width: 6px;
+  border-radius: 3px;
+  background: #ffe27a;
+  opacity: 0.85;
 }
 .reel__fish {
   position: absolute;
-  top: 10px;
-  left: calc(var(--fish) * 100% - 26px);
-  width: 52px;
-  height: 52px;
-  filter: drop-shadow(0 0 8px var(--rarity));
+  top: 6px;
+  left: calc(var(--prog) * 100% - 50px);
+  width: 100px;
+  height: 100px;
+  filter: drop-shadow(0 0 10px var(--rarity)) drop-shadow(0 0 4px var(--rarity));
+  transition: left 0.08s linear;
+  animation: wiggle 0.5s ease-in-out infinite alternate;
+}
+.reel--surge .reel__fish {
+  animation-duration: 0.12s;
 }
 .reel__fish :deep(.icon) {
-  width: 52px;
-  height: 52px;
+  width: 100px;
+  height: 100px;
 }
-.reel__meter {
-  margin-top: 12px;
-  height: 22px;
-  border-radius: 11px;
-  background: #0b1a2a;
-  overflow: hidden;
-}
-.reel__fill {
-  width: calc(var(--prog) * 100%);
-  height: 100%;
-  background: linear-gradient(90deg, #ffe27a, #5fff8a);
+.reel__pop {
+  position: absolute;
+  top: 14px;
+  left: calc(var(--x) * 100% + var(--dx));
+  color: #fff;
+  font-size: 64px;
+  line-height: 1;
+  pointer-events: none;
+  animation: pop 0.55s ease-out forwards;
 }
 .reel__perfect {
   position: absolute;
-  top: -40px;
-  right: 18px;
+  top: 50%;
+  left: calc(100% + 18px);
+  translate: 0 -50%;
   color: #ffe27a;
-  font-size: 48px;
+  font-size: 44px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@keyframes tap-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.18);
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: -6px 0;
+  }
+  75% {
+    translate: 6px 0;
+  }
+}
+@keyframes wiggle {
+  from {
+    rotate: -10deg;
+  }
+  to {
+    rotate: 10deg;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-90px) scale(1.3);
+  }
 }
 @keyframes pulse {
   from {

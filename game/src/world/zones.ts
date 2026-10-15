@@ -20,7 +20,7 @@ import { mergeItems, type MergeItem } from "./merge"
 import { settings } from "./quality"
 import { assetUrl, loadPack } from "../assets/gltf"
 import { cloneRoot, hasRoot, loadPackRoots, loadPropMeta, materialKind, propParts } from "../assets/packs"
-import { packMaterials } from "../assets/materials"
+import { groundMaterial, loadGroundDetail, packMaterials } from "../assets/materials"
 import { WATER_PALETTES, waterMaterial, waterUniforms } from "./water"
 import { Billboards } from "./billboards"
 import { nightFactor } from "../sky"
@@ -95,6 +95,8 @@ interface TerrainChunk {
 export interface ZoneView {
   chunks: Chunk[]
   terrain: TerrainChunk[]
+  /** Terrain and path meshes on the ground material (full or cheap by quality). */
+  ground: Mesh[]
   sea: Mesh
   index: number
   group: Group
@@ -175,9 +177,10 @@ export class World {
 
   constructor(private readonly game: WorldHost) {}
 
-  /** Loads the shared packs once. */
+  /** Loads the shared packs once (and starts the ground detail texture, which nothing waits for). */
   init(): Promise<void> {
     if (!this.ready) {
+      void loadGroundDetail()
       this.ready = Promise.all([loadPackRoots("models/props.glb"), loadPackRoots("models/items.glb"), loadPackRoots("models/chars.glb"), loadPropMeta()]).then(() => undefined)
     }
     return this.ready
@@ -242,13 +245,16 @@ export class World {
     disposables.push(water)
     // terrain chunks (full + "__lod"), water, paths and special meshes from the zone pack
     const terrainChunks = new Map<string, TerrainChunk>()
+    const ground: Mesh[] = []
     const pack = scene.clone(true)
     pack.traverse((o) => {
       const mesh = o as Mesh
       if (!mesh.isMesh) return
       const kind = materialKind((mesh.material as Material).name)
       const isTerrain = o.name.startsWith("terrain")
-      mesh.material = kind === "water" ? water : kind === "glow" ? mats.glow : o.name.startsWith("paths") || isTerrain ? mats.toonFlat : mats.toon
+      const isGround = kind !== "water" && kind !== "glow" && (o.name.startsWith("paths") || isTerrain)
+      if (isGround) ground.push(mesh)
+      mesh.material = kind === "water" ? water : kind === "glow" ? mats.glow : isGround ? groundMaterial(settings().cheapGround) : mats.toon
       if (kind === "water") mesh.renderOrder = 2
       if (isTerrain) {
         const key = o.name.replace(/__lod$/, "")
@@ -405,7 +411,7 @@ export class World {
         }
       }
     })
-    return { index, group, data, npcs, halos, flies, wheel, release, chunks, terrain: [...terrainChunks.values()], sea }
+    return { index, group, data, npcs, halos, flies, wheel, release, chunks, terrain: [...terrainChunks.values()], ground, sea }
   }
 
   private lodTimer = 0
@@ -431,6 +437,8 @@ export class World {
       t.full.visible = full
       if (t.far) t.far.visible = !full
     }
+    const ground = groundMaterial(q.cheapGround)
+    for (const mesh of view.ground) mesh.material = ground
   }
 
   private animate(px: number, pz: number, dt: number): void {

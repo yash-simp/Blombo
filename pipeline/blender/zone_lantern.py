@@ -40,7 +40,8 @@ def build():
     ring = lake.buffer(5.5).exterior
     z.paths = [(LineString(p), 3.2) for p in paths] + [(LineString(list(ring.coords)), 2.6)]
     # structures
-    z.structure("plaza_disc", 0, 33, 0, clear=10)
+    # the plaza's paving is ground (zonelib.ribbon_mesh, from z.plazas); keep its scatter clearance
+    z.no_scatter.append(Point(0, 33).buffer(10))
     z.structure("fountain", 0, 31.5, 0, clear=4)
     z.anchors["fountain"] = [0, GROUND, 31.5]
     z.structure("market_stall", -13, 19.2, math.pi * 0.75 + math.pi, clear=4)

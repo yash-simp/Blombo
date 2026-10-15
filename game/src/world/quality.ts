@@ -1,5 +1,5 @@
 // Graphics quality. "high" draws the full world; "low" (slow phones) shortens the draw distances,
-// drops prop shadows and fireflies, and renders at a lower resolution. "auto" starts at the level this
+// drops prop shadows and fireflies, uses a cheaper ground shader, and renders at a lower resolution. "auto" starts at the level this
 // device last needed and steps down when the frame rate stays low.
 import { reactive } from "vue"
 
@@ -18,11 +18,13 @@ export interface QualitySettings {
   /** game.setRenderScale. */
   renderScale: number
   fireflies: boolean
+  /** Terrain and paths use the cheap ground material (one detail sample, no anisotropic filtering). */
+  cheapGround: boolean
 }
 
 export const LEVELS: Record<QualityLevel, QualitySettings> = {
-  high: { clutter: 40, detail: 40, terrain: 70, shadows: true, renderScale: 1, fireflies: true },
-  low: { clutter: 24, detail: 26, terrain: 40, shadows: false, renderScale: 0.75, fireflies: false },
+  high: { clutter: 40, detail: 40, terrain: 70, shadows: true, renderScale: 1, fireflies: true, cheapGround: false },
+  low: { clutter: 24, detail: 26, terrain: 40, shadows: false, renderScale: 0.75, fireflies: false, cheapGround: true },
 }
 
 /** Average frame rate below which auto mode switches to low (two windows in a row). */

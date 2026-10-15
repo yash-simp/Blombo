@@ -62,7 +62,7 @@ function setAuto(on: boolean): void {
           <Icon name="gear" class="row__icon" />
           <div class="row__main">
             <strong>{{ t("reel." + reel.id) }}</strong>
-            <small>{{ t("shop.zone", { n: Math.round(reel.zone * 100) }) }}</small>
+            <small>{{ t("shop.tap", { n: Math.round(reel.tap * 100) }) }}</small>
           </div>
           <button v-if="(store.me?.reel ?? 0) >= i" type="button" class="pill pill--blue" disabled>{{ t("hud.owned") }}</button>
           <button v-else-if="level < reel.level" type="button" class="pill" disabled><Icon name="lock" />{{ t("hud.need_level", { n: reel.level }) }}</button>

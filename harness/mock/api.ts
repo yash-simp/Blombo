@@ -1,6 +1,7 @@
 // A browser stand-in for the game server's script `api`, so the game's real server/ code runs in the
 // harness page next to the real client. One player, timers on the page clock, storage in memory.
 import remotes from "../../game/remotes.json"
+import { setEnvironment } from "./runtime"
 
 type Handler = (...args: any[]) => unknown
 export interface ShimPlayer {
@@ -65,7 +66,7 @@ export const api = {
     playHandClip: () => {},
   },
   sound: { setSoundtrack: () => {}, playForPlayer: () => {}, playAt: () => {}, play: () => {} },
-  world: { setSkybox: () => {}, setEnvironment: () => {} },
+  world: { setSkybox: () => {}, setEnvironment },
   room: { setMaxPlayers: () => {} },
   commerce: {
     state: async () => ({ items: [], mode: "test" }),

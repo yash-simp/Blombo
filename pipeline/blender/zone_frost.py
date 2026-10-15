@@ -1,7 +1,7 @@
 from zonelib import *
 
 PAL = {"grass": [0xf3f7fb, 0xe7eff8, 0xdde8f3, 0xf8fbfd, 0xe2ecf6], "sand": 0xdfe6ee, "sand_wet": 0xc6d2dd, "seabed": 0x6f8a9a,
-       "rock": 0x8a96a6, "path": 0xbccde0, "plaza": 0xd0dcea, "hill": 0xeef4fa}
+       "rock": 0x8a96a6, "path": 0xbccde0, "plaza": 0xd0dcea, "hill": 0xeef4fa, "land": SURF_SAND}
 
 def build():
     z = Zone("frost", 411, PAL)

@@ -318,12 +318,13 @@ class Asset:
         bm.normal_update()
         if ao:
             bake_ao(bm, self.col, self.kind, ao_dist, ao_rays, ao_strength, ground, ao_extra)
-        # Linear colours for the exporter (it writes the attribute as linear floats).
+        # Linear colours for the exporter (it writes the attribute as linear floats). Alpha is data
+        # (the ground's surface type), kept as is.
         for f in bm.faces:
             for l in f.loops:
                 c = l[self.col]
                 lc = srgb_to_lin((c[0], c[1], c[2]))
-                l[self.col] = (lc[0], lc[1], lc[2], 1.0)
+                l[self.col] = (lc[0], lc[1], lc[2], c[3])
         me = bpy.data.meshes.new(self.name)
         bm.to_mesh(me)
         bm.free()
@@ -408,7 +409,7 @@ def bake_ao(bm, col, kind_layer, dist, rays, strength, ground, extra=None):
                 cache[key] = occ
             ao = 1.0 - strength * occ
             c = l[col]
-            l[col] = (c[0] * ao, c[1] * ao, c[2] * ao, 1.0)
+            l[col] = (c[0] * ao, c[1] * ao, c[2] * ao, c[3])
 
 # ───────────────────────── export ─────────────────────────
 def export_glb(path, objects):

@@ -11,11 +11,13 @@ interface Look {
   fogColor: number
 }
 
+// Warm light (sun, tint) over a cool shade must not lift red and blue above green, or light ground and
+// white snow turn pink/purple: dawn and dusk are golden over blue-grey, night a soft grey moonlight.
 const LOOK: Record<string, Look> = {
-  dawn: { brightness: 92, tint: 0xffe2c8, sunColor: 0xffc89a, shadeColor: 0xc8c8ff, fog: 2, fogColor: 0xf6d6c0 },
+  dawn: { brightness: 94, tint: 0xfff0e0, sunColor: 0xffd4a0, shadeColor: 0xbccce8, fog: 2, fogColor: 0xf2d8c4 },
   day: { brightness: 108, tint: 0xffffff, sunColor: 0xfff1dc, shadeColor: 0xd6e6ff, fog: 1, fogColor: 0xd8ecfb },
-  dusk: { brightness: 82, tint: 0xffd0b0, sunColor: 0xff9a6a, shadeColor: 0xb8a8e8, fog: 2, fogColor: 0xe8b8a8 },
-  night: { brightness: 52, tint: 0x9fb2ff, sunColor: 0xb8c8ff, shadeColor: 0x6070b8, fog: 3, fogColor: 0x1c2848 },
+  dusk: { brightness: 86, tint: 0xffecd4, sunColor: 0xffc47c, shadeColor: 0xa4b8d4, fog: 2, fogColor: 0xe6c4a6 },
+  night: { brightness: 66, tint: 0xccd4ea, sunColor: 0xccdaff, shadeColor: 0x8c96b4, fog: 3, fogColor: 0x283244 },
 }
 const SKIES: Record<string, string> = {
   "dawn:clear": "optimistic-sunrise",
@@ -46,6 +48,11 @@ function lerpColor(a: number, b: number, t: number): number {
   return (mix(16) << 16) | (mix(8) << 8) | mix(0)
 }
 
+/** A weather haze colour dimmed with the light, so rain or fog at night stays a dark haze. */
+function haze(color: number, brightness: number): number {
+  return lerpColor(0x000000, color, Math.min(1, brightness / LOOK.day!.brightness))
+}
+
 /** The environment for a sky state; transitions blend toward the next phase near its end. */
 export function lookFor(sky: Sky): Look & { sunAzimuth: number; sunElevation: number } {
   const base = LOOK[sky.phase]!
@@ -59,17 +66,18 @@ export function lookFor(sky: Sky): Look & { sunAzimuth: number; sunElevation: nu
     fog: base.fog,
     fogColor: lerpColor(base.fogColor, next.fogColor, blend),
   }
+  const lit = look.brightness
   if (sky.weather === "rain") {
     look.brightness *= 0.85
     look.fog = Math.max(look.fog, 4)
-    look.fogColor = lerpColor(look.fogColor, 0x8a98a8, 0.6)
+    look.fogColor = lerpColor(look.fogColor, haze(0x8a98a8, lit), 0.6)
   } else if (sky.weather === "fog") {
     look.fog = 8
-    look.fogColor = lerpColor(look.fogColor, 0xc8d0d8, 0.7)
+    look.fogColor = lerpColor(look.fogColor, haze(0xc8d0d8, lit), 0.7)
   } else if (sky.weather === "storm") {
     look.brightness *= 0.7
     look.fog = Math.max(look.fog, 5)
-    look.fogColor = lerpColor(look.fogColor, 0x4a5868, 0.7)
+    look.fogColor = lerpColor(look.fogColor, haze(0x4a5868, lit), 0.7)
     look.tint = lerpColor(look.tint, 0xa8b8d0, 0.5)
   } else if (sky.weather === "aurora") {
     look.tint = lerpColor(look.tint, 0x9fffd8, 0.35)

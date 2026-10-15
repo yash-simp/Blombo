@@ -1,13 +1,13 @@
 // Harness stand-in for src/game.ts: a plain three WebGPU renderer (WebGL2 backend), a follow camera,
 // a blocky stand-in avatar holding the real rod model, and a fake IGame wired to the api shim, so the
 // real HUD, World and fishing controller run unchanged.
-import { BoxGeometry, Color, Frustum, Matrix4, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Scene, SphereGeometry, BackSide, Vector3 } from "three"
+import { BoxGeometry, Color, Fog, Frustum, Matrix4, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Scene, SphereGeometry, BackSide, Vector3 } from "three"
 import { MeshBasicNodeMaterial, WebGPURenderer } from "three/webgpu"
-import { color, mix, positionLocal, smoothstep } from "three/tsl"
+import { mix, positionLocal, smoothstep, uniform } from "three/tsl"
 import { World } from "../../game/src/world/zones"
 import { cloneRoot } from "../../game/src/assets/packs"
 import { t } from "../platform/text"
-import { toonMaterial } from "./runtime"
+import { light, toonMaterial } from "./runtime"
 import { client, held, hooks, player } from "./api"
 import commerce from "../../game/commerce.json"
 
@@ -22,7 +22,9 @@ function skyDome(): Mesh {
   const geometry = new SphereGeometry(1500, 32, 16)
   const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, fog: false })
   const h = smoothstep(-0.05, 0.6, positionLocal.y.div(1500))
-  material.colorNode = mix(color(0xd8ecfb), color(0x5aa8e8), h)
+  // horizon in the fog colour, the zenith a deeper shade of it (the engine shows a skybox here)
+  const horizon = uniform(light.fog.color)
+  material.colorNode = mix(horizon, horizon.mul(uniform(new Color(0x5aa8e8)).div(uniform(new Color(0xd8ecfb)))), h)
   return new Mesh(geometry, material)
 }
 
@@ -56,6 +58,8 @@ export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElem
   const scene = new Scene()
   scene.background = new Color(0xbfe0f8)
   scene.add(skyDome())
+  const fog = new Fog(light.fog.color, light.fog.near, light.fog.far)
+  scene.fog = fog
   const camera = new PerspectiveCamera(60, 1, 0.1, 2000)
   let cameraMode: "follow" | "manual" = "follow"
   const frameHandlers = new Set<(e: { dt: number }) => void>()
@@ -195,6 +199,9 @@ export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElem
       }
     }
     for (const cb of [...frameHandlers]) cb({ dt })
+    fog.color.copy(light.fog.color)
+    fog.near = light.fog.near
+    fog.far = light.fog.far
     if (cameraMode === "follow") {
       const back = FORWARD(player.yaw).multiplyScalar(-7)
       camera.position.set(position.x + back.x, position.y + 3.4, position.z + back.z)

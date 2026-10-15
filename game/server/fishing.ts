@@ -11,6 +11,7 @@ import {
   rollFish,
   skyAt,
   sizeOf,
+  tapPower,
   zoneAt,
 } from "./rules.ts"
 import { FLAG_SHINY, bagCap } from "./save.ts"
@@ -129,7 +130,8 @@ export function cast(p: Live, player: ScriptPlayer, req: { x: number; z: number;
   f.shiny = rolled.shiny
   f.d = d
   f.biteAt = now + delay
-  f.win = first ? 6000 : 1400 + s.reel * 100
+  // A generous strike window: about 3 s, a little more with each reel (the first fish waits 6 s).
+  f.win = first ? 6000 : 3000 + s.reel * 150
   api.remotes.send(p.userId, "CastOk", { id, bite: delay, d: 1, r: 0, first, none: false, win: f.win })
   f.timer = api.setTimeout(() => {
     if (p.fishing.id !== id || p.fishing.phase !== "wait") return
@@ -178,13 +180,15 @@ export function reel(p: Live, req: { id: number; ok: boolean; perfect: boolean }
   const f = p.fishing
   if (f.phase !== "hooked" || f.id !== req.id) return
   if (!req.ok) return escape(p, true)
-  const power = RODS[p.save.rod]?.power ?? 1
+  const power = tapPower(p.save.rod, p.save.reel)
   const elapsed = Date.now() - f.hookAt
-  if (elapsed < minFightMs(f.d, power) * 0.8 - 500) {
+  // The server's clock covers both network legs, so a real fight never comes in under minFightMs; the 100 ms
+  // only covers a client frame and tick timing.
+  if (elapsed < minFightMs(f.d, power) - 100) {
     api.warn("reel too fast", p.userId, elapsed)
     return escape(p, false)
   }
-  // Perfect means the fish never left the zone: impossible faster than the minimum fight, never on Auto-Reel
+  // Perfect means the meter never slipped below its start: impossible faster than the minimum fight, never on Auto-Reel
   const perfect = req.perfect && !p.save.auto && !f.auto && elapsed >= minFightMs(f.d, power) * 0.97
   grantCatch(p, f.species, f.grams, f.shiny, perfect, f.first, f.zone, f.x, f.z)
   resetFishing(p, false)

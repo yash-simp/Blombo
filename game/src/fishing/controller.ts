@@ -17,7 +17,7 @@ import {
 } from "three"
 import { reactive } from "vue"
 import type { IGame } from "@blombo/game-runtime"
-import { REELS, RODS, SPECIES, zoneAt } from "../../server/rules.ts"
+import { RODS, SPECIES, tapPower, zoneAt } from "../../server/rules.ts"
 import { isWater, nearestWater } from "../../server/world.ts"
 import { on, store } from "../net"
 import { Fight } from "./fight"
@@ -28,17 +28,22 @@ import { packMaterials, vertexToon } from "../assets/materials"
 
 /** Seconds to wait for the server's answer to a Hook or Reel before giving up on that fish. */
 const LANDING_TIMEOUT_S = 6
+/** How long the "wait for the splash" hint stays after a tap before the bite. */
+const EARLY_HINT_MS = 1600
+/** How far the fish comes towards the rod as the catch meter fills (0..1 of the line). */
+const REEL_IN = 0.45
 
 export type Phase = "idle" | "charging" | "flying" | "waiting" | "bite" | "reeling" | "landing"
 
 export interface FightView {
-  zone: number
-  width: number
-  fish: number
+  /** The catch meter, 0..1 (full = caught). */
   progress: number
   rarity: number
-  inside: boolean
   perfect: boolean
+  /** Counted taps: changes on every tap that counted (the HUD bumps on it). */
+  taps: number
+  /** The fish is surging: pulling harder for a moment. */
+  surge: boolean
 }
 
 export interface CatchView {
@@ -67,6 +72,7 @@ export const fishUi = reactive({
 
 const tmp = new Vector3()
 const tmp2 = new Vector3()
+const tmp3 = new Vector3()
 
 /** A thin camera-facing strip through a polyline (the fishing line). */
 class Line {
@@ -158,12 +164,15 @@ export class Fishing {
   private readonly others = new Map<string, Rig>()
   private readonly bang: Sprite
   private fight: Fight | null = null
-  private holding = false
+  /** Elapsed fight time of the last tap splash (a few splashes a second at most). */
+  private tapSplashAt = -1
   private chargeT = 0
   private target = new Vector3()
   private castId = 0
   private biteAt = 0
   private winEnd = 0
+  /** Until when the "wait for the splash" hint shows (performance.now ms). */
+  private earlyUntil = 0
   private nibble = 0
   private jumpTimer = 2
   private jumper: { obj: Object3D; t: number; from: Vector3; dir: Vector3 } | null = null
@@ -258,28 +267,52 @@ export class Fishing {
         return
       case "flying":
       case "waiting":
-        if (this.awaitingCast) this.cancelOnOk = true
-        else this.game.remotes.send("CancelCast", this.castId)
-        this.reset()
+        // A tap before the bite never loses the fish: it only says to wait (the small Reel in button
+        // or walking away winds the line in). An empty water has nothing to wait for.
+        if (fishUi.nothing) return this.reelIn()
+        this.earlyUntil = performance.now() + EARLY_HINT_MS
+        this.set(fishUi.phase, "hint.too_early")
         return
       case "bite":
         this.game.remotes.send("Hook", this.castId)
+        this.bang.visible = false
         this.set("landing", "")
         return
       case "reeling":
-        this.holding = true
+        if (this.fight?.tap()) this.onTap()
         return
     }
   }
 
   release(): void {
     if (fishUi.phase === "charging") this.cast()
-    this.holding = false
   }
 
   cancel(): void {
-    this.holding = false
     if (fishUi.phase === "charging") this.set("idle")
+  }
+
+  /** Winds in a line with no fish on it (the small Reel in button while waiting). */
+  reelIn(): void {
+    if (fishUi.phase !== "flying" && fishUi.phase !== "waiting") return
+    if (this.awaitingCast) this.cancelOnOk = true
+    else this.game.remotes.send("CancelCast", this.castId)
+    this.reset()
+  }
+
+  /** A counted tap (the player's or Auto-Reel's): the HUD bumps, the line jerks, the water splashes. */
+  private onTap(): void {
+    const fight = this.fight
+    if (!fight) return
+    if (fishUi.fight) {
+      fishUi.fight.progress = fight.progress
+      fishUi.fight.taps = fight.taps
+    }
+    if (this.tapSplashAt < 0 || fight.elapsed - this.tapSplashAt > 0.45) {
+      this.tapSplashAt = fight.elapsed
+      const b = this.mine.bobber.position
+      this.fx.splash(b.x, b.z, 0.4)
+    }
   }
 
   private reset(): void {
@@ -288,7 +321,7 @@ export class Fishing {
     this.bang.visible = false
     this.fight = null
     fishUi.fight = null
-    this.holding = false
+    fishUi.nothing = false
     this.set("idle")
     this.game.hands.stop("rightArm")
   }
@@ -366,14 +399,14 @@ export class Fishing {
 
   private onHooked(id: number, d: number, r: number): void {
     this.castId = id
-    const power = this.rod().power
-    const width = REELS[store.me?.reel ?? 0]?.zone ?? 0.22
-    this.fight = new Fight(d, power, width)
+    this.fight = new Fight(d, tapPower(store.me?.rod ?? 0, store.me?.reel ?? 0))
+    this.tapSplashAt = -1
     this.jumpTimer = 1.2
     this.mine.root.visible = true
+    this.bang.visible = false
     if (this.mine.to.lengthSq() === 0) this.mine.to.copy(this.target)
-    fishUi.fight = { zone: this.fight.zone, width, fish: this.fight.fish, progress: this.fight.progress, rarity: r, inside: true, perfect: true }
-    this.set("reeling", "hint.hold_reel")
+    fishUi.fight = { progress: this.fight.progress, rarity: r, perfect: true, taps: 0, surge: false }
+    this.set("reeling", "hint.tap_reel")
     this.fx.splash(this.mine.to.x, this.mine.to.z, 1.4)
     void this.ensureFish().then(() => {
       if (!this.shadowFish) {
@@ -388,7 +421,8 @@ export class Fishing {
   }
 
   private onCaught2(c: CatchView): void {
-    const at = this.mine.to.clone()
+    // the fish leaps from where it was reeled to (the bobber), not where the line first landed
+    const at = this.mine.root.visible ? this.mine.bobber.position.clone().setY(0.05) : this.mine.to.clone()
     this.reset()
     fishUi.catchCard = { ...c }
     this.fx.splash(at.x, at.z, 1.8)
@@ -398,7 +432,7 @@ export class Fishing {
   }
 
   private onEscaped(r: number, rehook: boolean): void {
-    const at = this.mine.to.clone()
+    const at = this.mine.root.visible ? this.mine.bobber.position.clone() : this.mine.to.clone()
     this.reset()
     fishUi.escaped = { r, rehook }
     this.fx.splash(at.x, at.z, 1.2)
@@ -519,38 +553,44 @@ export class Fishing {
         this.fx.splash(this.mine.to.x, this.mine.to.z, 0.45)
       }
     }
+    if ((fishUi.phase === "waiting" || fishUi.phase === "flying") && fishUi.hint === "hint.too_early" && now > this.earlyUntil) {
+      this.set(fishUi.phase, fishUi.phase === "waiting" ? "hint.wait" : "")
+    }
     if (fishUi.phase === "bite") {
       this.bang.position.set(this.mine.to.x, 1.4 + Math.abs(Math.sin(now / 90)) * 0.25, this.mine.to.z)
       if (now > this.winEnd) {
         this.game.remotes.send("CancelCast", this.castId)
         this.reset()
+        this.set("idle", "hud.too_slow")
         fishUi.escaped = { r: -1, rehook: false }
       }
     }
     // the fight
     if (fishUi.phase === "reeling" && this.fight) {
       const auto = store.me?.auto === true
-      this.fight.update(dt, auto ? this.fight.autoHold() : this.holding)
+      const taps = this.fight.taps
+      this.fight.update(dt, auto)
+      if (this.fight.taps !== taps) this.onTap()
       const f = fishUi.fight
       if (f) {
-        f.zone = this.fight.zone
-        f.fish = this.fight.fish
         f.progress = this.fight.progress
-        f.inside = this.fight.inside
         f.perfect = this.fight.perfect && !auto
+        f.taps = this.fight.taps
+        f.surge = this.fight.surge > 0
       }
       this.jumpTimer -= dt
       if (this.jumpTimer <= 0 && this.shadowFish && !this.jumper) {
         this.jumpTimer = 2.2 + Math.random() * 2
         const dir = new Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize()
-        this.jumper = { obj: this.shadowFish, t: 0, from: this.mine.to.clone(), dir }
+        const b = this.mine.bobber.position
+        this.jumper = { obj: this.shadowFish, t: 0, from: new Vector3(b.x, 0, b.z), dir }
         this.shadowFish.visible = true
-        this.fx.splash(this.mine.to.x, this.mine.to.z, 1.2)
+        this.fx.splash(b.x, b.z, 1.2)
       }
       if (this.fight.done) {
+        // the finished fight stays until the answer (reset) so the fish stays where it was reeled to
         this.game.remotes.send("Reel", { id: this.castId, ok: this.fight.done === "caught", perfect: this.fight.perfect && !auto })
         this.set("landing", "")
-        this.fight = null
       }
     }
     if (this.jumper) {
@@ -600,7 +640,7 @@ export class Fishing {
         if (rig === this.mine && fishUi.phase === "flying") this.set("waiting", "hint.wait")
       }
     } else {
-      const reeling = rig === this.mine ? fishUi.phase === "reeling" : rig.thrash > 0
+      const reeling = rig === this.mine ? fishUi.phase === "reeling" || (fishUi.phase === "landing" && !!this.fight) : rig.thrash > 0
       const bite = rig === this.mine ? fishUi.phase === "bite" : rig.bite > 0
       rig.bite = Math.max(0, rig.bite - dt)
       const bob = Math.sin(now / 420) * 0.04
@@ -609,13 +649,22 @@ export class Fishing {
       let y = 0.05 + bob
       if (bite) y -= 0.18 + Math.abs(Math.sin(now / 70)) * 0.08
       if (reeling) {
-        x += Math.sin(now / 130) * 0.35
-        z += Math.cos(now / 170) * 0.35
+        // My fight: the fish comes in as the meter fills, jerks towards the rod on each tap and thrashes
+        // harder while it surges. Others' fish just thrash.
+        const fight = rig === this.mine ? this.fight : null
+        const surge = fight && fight.surge > 0 ? 1.7 : 1
+        let pull = fight ? fight.progress * REEL_IN : 0
+        if (fight && fight.sinceTap < 0.15) pull += 0.06 * (1 - fight.sinceTap / 0.15)
+        tmp3.subVectors(tip, rig.to).setY(0)
+        x += tmp3.x * pull + Math.sin(now / 130) * 0.3 * surge
+        z += tmp3.z * pull + Math.cos(now / 170) * 0.3 * surge
         y -= 0.1
       }
       b.set(x, y, z)
     }
-    rig.line.set(tip, b, rig.t < rig.flight ? 0.1 : fishUi.phase === "reeling" && rig === this.mine ? 0.05 : 0.6, eye)
+    let sag = rig.t < rig.flight ? 0.1 : 0.6
+    if (rig === this.mine && this.fight) sag = this.fight.sinceTap < 0.15 ? 0.01 : 0.06
+    rig.line.set(tip, b, sag, eye)
   }
 
   dispose(): void {

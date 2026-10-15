@@ -43,23 +43,21 @@ async function autoHook(page, delayMs = 350) {
   }, delayMs)
 }
 
-/** Holds E while the fish is ahead of the green zone, like a decent player. */
+/** Taps E about six times a second while reeling, like an eager player (Auto-Reel off); reelHold pauses it. */
 async function reelBot(page) {
   await page.evaluate(() => {
-    let holding = false
     const key = (type) => window.dispatchEvent(new KeyboardEvent(type, { code: "KeyE", key: "e" }))
+    window.__harness.reelTaps = 0
+    window.__harness.reelHold = false
     const id = setInterval(() => {
       const ui = window.__harness.fishUi
-      if (ui.phase !== "reeling" || !ui.fight) {
-        if (holding) key("keyup")
-        holding = false
-        if (ui.phase === "idle" || ui.catchCard) clearInterval(id)
-        return
-      }
-      const want = ui.fight.fish > ui.fight.zone
-      if (want !== holding) key(want ? "keydown" : "keyup")
-      holding = want
-    }, 16)
+      if (window.__harness.reelHold) return
+      if (ui.phase === "reeling" && ui.fight) {
+        key("keydown")
+        key("keyup")
+        window.__harness.reelTaps++
+      } else if (ui.phase === "idle" || ui.catchCard) clearInterval(id)
+    }, 165)
   })
 }
 
@@ -82,13 +80,25 @@ const FLOWS = {
     await page.keyboard.up("e")
     await sleep(500)
     await shot("05-cast")
+    // An eager tap before the bite only says to wait: the cast stays out.
+    await until(page, () => ["waiting", "bite"].includes(window.__harness.fishUi.phase))
+    const early = await page.evaluate(() => {
+      const ui = window.__harness.fishUi
+      if (ui.phase !== "waiting") return "skipped (" + ui.phase + ")"
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyE", key: "e" }))
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyE", key: "e" }))
+      return ui.phase + " " + ui.hint
+    })
+    if (!early.startsWith("waiting hint.too_early") && !early.startsWith("skipped")) throw new Error("early tap: " + early)
     await autoHook(page)
     await until(page, () => window.__harness.fishUi.phase === "bite" || window.__harness.bitten)
     await shot("06-bite")
     await until(page, () => window.__harness.fishUi.phase === "reeling", null, 20000)
     await reelBot(page)
-    await sleep(900)
+    await until(page, () => window.__harness.reelTaps >= 2 || !!window.__harness.fishUi.catchCard)
+    await page.evaluate(() => (window.__harness.reelHold = true))
     await shot("07-reeling")
+    await page.evaluate(() => (window.__harness.reelHold = false))
     await until(page, () => !!window.__harness.fishUi.catchCard, null, 20000)
     await sleep(700)
     await shot("08-first-catch")

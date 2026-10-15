@@ -213,17 +213,18 @@ export const RODS: Rod[] = [
 ]
 export interface Reel {
   id: string
-  zone: number
+  /** Tap power: multiplies how far each tap fills the catch meter (with the rod's power). */
+  tap: number
   coins: number
   level: number
 }
 export const REELS: Reel[] = [
-  { id: "basic", zone: 0.22, coins: 0, level: 1 },
-  { id: "smooth", zone: 0.25, coins: 600, level: 3 },
-  { id: "pro", zone: 0.28, coins: 4_000, level: 9 },
-  { id: "glide", zone: 0.31, coins: 20_000, level: 16 },
-  { id: "tidal", zone: 0.34, coins: 90_000, level: 25 },
-  { id: "celestial", zone: 0.37, coins: 400_000, level: 38 },
+  { id: "basic", tap: 1, coins: 0, level: 1 },
+  { id: "smooth", tap: 1.07, coins: 600, level: 3 },
+  { id: "pro", tap: 1.13, coins: 4_000, level: 9 },
+  { id: "glide", tap: 1.19, coins: 20_000, level: 16 },
+  { id: "tidal", tap: 1.25, coins: 90_000, level: 25 },
+  { id: "celestial", tap: 1.3, coins: 400_000, level: 38 },
 ]
 export interface Bait {
   id: string
@@ -356,33 +357,52 @@ export function difficultyOf(species: number, grams: number): number {
 }
 
 // ───────────────────────────── the reel fight (played in the browser, bounded on the server) ──────
+// Tap to reel: every tap fills the catch meter, the fish pulls it down all the time (harder during short
+// surges). Full = caught, empty = escaped. Taps per rarity at an easy pace: about 8, 10, 14, 18, 24, 30.
 export const FIGHT = {
-  start: 0.3,
-  /** Catch meter per second while the fish is inside the zone: fill × rod power / (0.6 + 0.4 d). */
-  fill: 0.16,
-  /** Per second outside: drain × (0.7 + 0.3 d). */
-  drain: 0.12,
-  /** The player's zone: acceleration while holding, gravity while not (bar widths per s²). */
-  lift: 2.8,
-  gravity: 2.3,
-  maxSpeed: 1.5,
-  /** The fish marker: base speed + per difficulty (bar widths per s). */
-  fishSpeed: 0.32,
-  fishSpeedPerD: 0.16,
-  /** Seconds between new targets: retarget / (0.6 + 0.3 d). */
-  retarget: 1.15,
-  /** The perfect grace at the start, seconds. */
-  grace: 0.6,
+  /** Where the catch meter starts (0..1). */
+  start: 0.32,
+  /** Meter per tap: gain × power / d^gainExp (power = tapPower of the rod and reel), at most maxTap. */
+  gain: 0.13,
+  gainExp: 0.74,
+  /** Rod power counts as power^rodExp: top gear makes fights shorter, never trivial. */
+  rodExp: 0.5,
+  /** (1 - start) / 4: whatever the gear, a catch takes at least five taps (and the server's bound stays meaningful). */
+  maxTap: 0.17,
+  /** Meter lost per second: pull × d^pullExp, × surgeMult while the fish surges. */
+  pull: 0.105,
+  pullExp: 0.05,
+  /** The fish only starts pulling at the first tap, or after this many seconds (time to see the meter). */
+  wait: 1.5,
+  /** A surge every surgeEvery × (0.7..1.3) s, lasting surgeTime s. */
+  surgeEvery: 3.2,
+  surgeTime: 0.6,
+  surgeMult: 2,
+  /** The meter fills at most one full tap per tapGap s: a quicker tap is worth its share (auto-clickers gain nothing). */
+  tapGap: 0.1,
+  /** Auto-Reel taps this many times a second: enough for any fish, never perfect. */
+  autoRate: 6,
+  /** Perfect: the meter never drops below its start after the first grace seconds. */
+  grace: 1,
 }
-export function fillRate(d: number, power: number): number {
-  return (FIGHT.fill * power) / (0.6 + 0.4 * d)
+/** What gear adds to each tap: rod power^rodExp × reel tap power. */
+export function tapPower(rod: number, reel: number): number {
+  return Math.pow(RODS[rod]?.power ?? 1, FIGHT.rodExp) * (REELS[reel]?.tap ?? 1)
 }
-export function drainRate(d: number): number {
-  return FIGHT.drain * (0.7 + 0.3 * d)
+export function tapGain(d: number, power: number): number {
+  return Math.min(FIGHT.maxTap, (FIGHT.gain * power) / Math.pow(Math.max(0.3, d), FIGHT.gainExp))
 }
-/** The fastest possible fight: always inside from the first frame. */
+export function pullRate(d: number): number {
+  return FIGHT.pull * Math.pow(Math.max(0.3, d), FIGHT.pullExp)
+}
+/**
+ * The fastest possible fight: one full tap at once, then the meter filling at its cap (one tap per tapGap)
+ * against the fish's steady pull. Tap-rate and frame timing can only make a real fight slower.
+ */
 export function minFightMs(d: number, power: number): number {
-  return Math.round(((1 - FIGHT.start) / fillRate(d, power)) * 1000)
+  const gain = tapGain(d, power)
+  const s = (1 - FIGHT.start - gain) / Math.max(1e-6, gain / FIGHT.tapGap - pullRate(d))
+  return Math.floor(Math.max(0, s) * 1000)
 }
 
 // ───────────────────────────── levels ─────────────────────────────

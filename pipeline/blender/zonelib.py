@@ -12,6 +12,15 @@ GROUND = 1.0
 EXT = 120.0          # half extent of the zone square
 WATER_R = 150.0      # zone water is a disc; the game rings it with open sea
 TERRAIN_CHUNKS = 3   # terrain chunks per side (each with a half-resolution "__lod")
+# Surface type in the ground's vertex colour alpha: which detail layer the ground shader shows
+# (game/src/assets/materials.ts groundToon). Neighbours in this order blend through each other.
+SURF_GRASS, SURF_DIRT, SURF_SAND, SURF_PAVING = 1.0, 0.67, 0.33, 0.0
+DSTEP = 1.6          # terrain slope/normal sample spacing (metres), the same for every mesh resolution
+STEEP = 0.9          # terrain faces steeper than this (|dh/dx| + |dh/dz|) stay faceted, like the props
+
+def steep_face(n):
+    """Whether a terrain face with (Blender) normal n is flat-shaded: steep slopes and skirts."""
+    return abs(n.x) + abs(n.y) > STEEP * n.z
 
 def blob(cx, cz, r, seed, wobble=0.18, n=48, sx=1.0, sz=1.0):
     rng = random.Random(seed)
@@ -107,101 +116,150 @@ class Zone:
         return out
 
     def terrain(self, step=1.6, ext=EXT, bounds=None, skirt=0.0):
+        """A heightfield mesh with shared vertices, smooth normals and colours evaluated per vertex, so
+        neighbouring triangles blend instead of each catching its own shade. The colour alpha holds the
+        surface type for the ground shader (SURF_*). Returns a Part whose .normals (one per vertex, in
+        creation order) the builder gives the corners of smooth faces: they come from the height function
+        itself, so chunk edges and the "__lod" copies match their neighbours. Steep faces (steep_face) are
+        flat-shaded with one colour each, so cliffs stay faceted like the props."""
         x0, z0, x1, z1 = bounds if bounds else (-ext, -ext, ext, ext)
-        xs = np.arange(x0, x1 + 0.01, step)
-        zs = np.arange(z0, z1 + 0.01, step)
-        H = self.height_grid(xs, zs)
+        # heights on a DSTEP grid with one extra ring (the mesh takes every k-th sample): slopes and
+        # normals are central differences on it, the same at any mesh step and across chunk edges, so a
+        # vertex that a neighbouring chunk or the "__lod" copy shares gets the same normal and colour
+        k = int(round(step / DSTEP))
+        assert k >= 1 and abs(k * DSTEP - step) < 1e-6, "terrain step must be a multiple of DSTEP"
+        xf = np.arange(x0 - DSTEP, x1 + DSTEP + 0.01, DSTEP)
+        zf = np.arange(z0 - DSTEP, z1 + DSTEP + 0.01, DSTEP)
+        Hf = self.height_grid(xf, zf)
+        xs, zs = xf[1:-1][::k], zf[1:-1][::k]
+        H = Hf[1:-1, 1:-1][::k, ::k]
+        gx = ((Hf[1:-1, 2:] - Hf[1:-1, :-2]) / (2 * DSTEP))[::k, ::k]
+        gz = ((Hf[2:, 1:-1] - Hf[:-2, 1:-1]) / (2 * DSTEP))[::k, ::k]
+        X, Z = np.meshgrid(xs, zs)
+        rgb, surf = self.ground_colors(X, Z, H, np.abs(gx) + np.abs(gz))
         bm = bmesh.new()
         col = bm.loops.layers.float_color.new("Col")
         kl = bm.faces.layers.int.new("kind")
         nx, nz = len(xs), len(zs)
         verts = {}
+        normals = []
         def V(i, j):
             v = verts.get((i, j))
             if v is None:
                 v = bm.verts.new(G(xs[i], H[j, i], zs[j]))
                 verts[(i, j)] = v
+                # game-space normal (-dh/dx, 1, -dh/dz) in Blender axes
+                normals.append(Vector((-gx[j, i], gz[j, i], 1.0)).normalized())
             return v
-        rng = random.Random(self.seed)
-        pal = self.pal
-        path_geom = unary_union([ls.buffer(w / 2) for (ls, w) in self.paths]) if self.paths else None
-        plaza_geom = unary_union(self.plazas) if self.plazas else None
         for j in range(nz - 1):
             for i in range(nx - 1):
                 hs = (H[j, i], H[j, i + 1], H[j + 1, i + 1], H[j + 1, i])
                 if max(hs) < -3.2:
                     continue
-                cx, cz = (xs[i] + xs[i + 1]) / 2, (zs[j] + zs[j + 1]) / 2
-                hc = sum(hs) / 4
-                slope = (max(hs) - min(hs)) / step
-                # split along the shorter diagonal for smoother shapes
-                quads = ([(i, j), (i + 1, j), (i + 1, j + 1)], [(i, j), (i + 1, j + 1), (i, j + 1)])
-                for tri in quads:
+                for tri in (((i, j), (i + 1, j), (i + 1, j + 1)), ((i, j), (i + 1, j + 1), (i, j + 1))):
+                    corners = (tri[2], tri[1], tri[0])
                     try:
-                        f = bm.faces.new([V(*tri[2]), V(*tri[1]), V(*tri[0])])
+                        f = bm.faces.new([V(*c) for c in corners])
                     except ValueError:
                         continue
-                    c = self.ground_color(cx, cz, hc, slope, rng, path_geom, plaza_geom)
                     f[kl] = KIND_TOON
-                    for l in f.loops:
-                        l[col] = (*c, 1.0)
+                    f.smooth = True
+                    for l, (ci, cj) in zip(f.loops, corners):
+                        l[col] = (*rgb[cj, ci], surf[cj, ci])
         if not bm.faces:
             bm.free()
             return None
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bm.normal_update()
         for f in bm.faces:
             if f.normal.z < 0:
                 f.normal_flip()
+        # steep faces (flat-shaded by the builder) take one colour, worked out at their centre from their
+        # own slope: crisp rock facets with a clean edge, like the low-poly props
+        steep = [f for f in bm.faces if steep_face(f.normal)]
+        if steep:
+            cs = [f.calc_center_median() for f in steep]
+            fs = np.array([(abs(f.normal.x) + abs(f.normal.y)) / f.normal.z for f in steep])
+            frgb, fsurf = self.ground_colors(np.array([c.x for c in cs]), np.array([-c.y for c in cs]), np.array([c.z for c in cs]), fs)
+            for f, c, s in zip(steep, frgb, fsurf):
+                f.smooth = False
+                for l in f.loops:
+                    l[col] = (*c, s)
         if skirt > 0:
-            # a short wall hanging under every chunk edge, drawn from both sides
+            # a short wall hanging under every chunk edge, drawn from both sides (flat, a shade darker)
             edges = [[(i, 0) for i in range(nx)], [(i, nz - 1) for i in range(nx)], [(0, j) for j in range(nz)], [(nx - 1, j) for j in range(nz)]]
             for line in edges:
                 for (a_, b_) in zip(line[:-1], line[1:]):
                     va, vb = verts.get(a_), verts.get(b_)
                     if va is None or vb is None:
                         continue
-                    c = self.ground_color(xs[a_[0]], zs[a_[1]], H[a_[1], a_[0]] - 0.2, 0.0, rng, None, None)
+                    ca = (*(rgb[a_[1], a_[0]] * 0.85), surf[a_[1], a_[0]])
+                    cb = (*(rgb[b_[1], b_[0]] * 0.85), surf[b_[1], b_[0]])
                     for back in (False, True):
                         ta = bm.verts.new(va.co) if back else va
                         tb = bm.verts.new(vb.co) if back else vb
                         da = bm.verts.new(va.co - Vector((0, 0, skirt)))
                         db = bm.verts.new(vb.co - Vector((0, 0, skirt)))
-                        f = bm.faces.new([tb, ta, da, db] if back else [ta, tb, db, da])
+                        quad = [tb, ta, da, db] if back else [ta, tb, db, da]
+                        side = (va.co - vb.co).cross(Vector((0, 0, 1))).normalized() * (-1 if back else 1)
+                        normals.extend([side] * (4 if back else 2))
+                        f = bm.faces.new(quad)
                         f[kl] = KIND_TOON
-                        for l in f.loops:
-                            l[col] = (*c, 1.0)
+                        f.smooth = False
+                        for l, c in zip(f.loops, ((cb, ca, ca, cb) if back else (ca, cb, cb, ca))):
+                            l[col] = c
             bm.normal_update()
-        return Part(bm)
+        part = Part(bm)
+        part.normals = normals
+        return part
 
-    def ground_color(self, x, z, h, slope, rng, path_geom, plaza_geom):
+    def ground_colors(self, X, Z, H, S):
+        """Colour (sRGB, n x m x 3) and surface type (n x m) of the ground at grid points, blended
+        smoothly from height H, slope S (|dh/dx| + |dh/dz|) and smooth noise; no per-face jitter."""
         pal = self.pal
-        # two octaves of smooth noise pick a blend between the grass tones (no stripes)
-        nv = 0.5 + 0.35 * math.sin(x * 0.07 + self.seed) * math.cos(z * 0.06 - self.seed * 0.5) + 0.15 * math.sin(x * 0.19 - z * 0.17 + 1.3)
-        gs = pal["grass"]
-        f = max(0.0, min(0.999, nv)) * (len(gs) - 1)
-        k = int(f)
-        grass = mix(hexrgb(gs[k]), hexrgb(gs[min(k + 1, len(gs) - 1)]), f - k)
-        if h < -0.25:
-            c = mix(hexrgb(pal["sand_wet"]), hexrgb(pal["seabed"]), min(1, (-h - 0.25) / 2.5))
-        elif h < 0.35:
-            c = hexrgb(pal["sand_wet"]) if h < 0.08 else hexrgb(pal["sand"])
-        elif h < GROUND - 0.12 and slope < 0.8:
-            c = mix(hexrgb(pal["sand"]), grass, (h - 0.35) / (GROUND - 0.47))
-        elif h > GROUND + 0.4:
-            hill = hexrgb(pal["hill"]) if "hill" in pal else grass
-            c = mix(grass, hill, min(1.0, (h - GROUND) / 6.0))
-            if slope > 0.85:
-                c = mix(c, hexrgb(pal["rock"]), min(1.0, (slope - 0.85) * 2.5))
-            if "snowline" in pal and h > GROUND + pal["snowline"]:
-                c = hexrgb(pal["snow"])
-        else:
-            c = grass
-        if self.beach is not None and abs(h - GROUND) < 0.35 and self.beach.contains(Point(x, z)):
-            c = mix(hexrgb(pal["sand"]), grass, 0.12 * (0.5 + 0.5 * math.sin(x * 0.3 + z * 0.2)))
-        if plaza_geom is not None and abs(h - GROUND) < 0.2 and plaza_geom.contains(Point(x, z)):
-            c = hexrgb(pal["plaza"])
-        return jitter(c, rng, 0.025, 0.006)
+        P = lambda k: np.array(hexrgb(pal[k]), dtype=float)
+        blend = lambda a, b, t: a + (b - a) * np.asarray(t, dtype=float)[..., None]
+        land = pal.get("land", SURF_GRASS)
+        # two octaves of smooth noise pick a blend between the grass tones, plus a soft brightness drift
+        nv = 0.5 + 0.35 * np.sin(X * 0.07 + self.seed) * np.cos(Z * 0.06 - self.seed * 0.5) + 0.15 * np.sin(X * 0.19 - Z * 0.17 + 1.3)
+        tones = np.array([hexrgb(c) for c in pal["grass"]])
+        f = np.clip(nv, 0, 0.999) * (len(tones) - 1)
+        grass = np.stack([np.interp(f, np.arange(len(tones)), tones[:, c]) for c in range(3)], -1)
+        grass = grass * (1 + 0.045 * noise2(X, Z, self.seed + 71, 0.23))[..., None]
+        # shore: seabed -> wet sand -> dry sand -> grass up the bank (steep banks stay grassy)
+        under = blend(P("sand_wet"), P("seabed"), np.clip((-H - 0.25) / 2.5, 0, 1))
+        sand = blend(under, P("sand"), sstep(0.03, 0.15, H))
+        bank = np.clip((H - 0.35) / (GROUND - 0.47), 0, 1)
+        bank = np.maximum(bank, sstep(0.7, 0.9, S) * sstep(0.25, 0.45, H))
+        c = blend(sand, grass, bank)
+        surf = SURF_SAND + (land - SURF_SAND) * bank
+        # hills: toward the hill tone with height, rock on steep slopes, snow above a snowline
+        up = sstep(GROUND + 0.2, GROUND + 0.6, H)
+        if "hill" in pal:
+            c = blend(c, P("hill"), up * np.clip((H - GROUND) / 6.0, 0, 1))
+        rock = up * sstep(0.9, 1.1, S)
+        c = blend(c, P("rock"), rock)
+        surf = surf + (SURF_DIRT - surf) * rock
+        if "snowline" in pal:
+            snow = sstep(pal["snowline"] - 0.3, pal["snowline"] + 0.3, H - GROUND)
+            c = blend(c, P("snow"), snow)
+            surf = surf + (SURF_SAND - surf) * snow
+        if self.beach is not None:
+            pts = shapely.points(X.ravel(), Z.ravel())
+            inside = shapely.contains(self.beach, pts).reshape(X.shape)
+            d_beach = shapely.distance(self.beach.boundary, pts).reshape(X.shape)
+            d_shore = shapely.distance(self.walk_land.boundary, pts).reshape(X.shape)
+            # full sand toward the shore, fading out over 2.5 m at the beach's inland edge
+            w = np.where(inside, np.where(d_beach >= d_shore - 0.01, 1.0, sstep(0, 2.5, d_beach)), 0.0)
+            w = w * (1 - sstep(0.25, 0.45, np.abs(H - GROUND)))
+            dune = blend(P("sand"), grass, 0.12 * (0.5 + 0.5 * np.sin(X * 0.3 + Z * 0.2)))
+            c = blend(c, dune, w)
+            surf = surf + (SURF_SAND - surf) * w
+        if land == SURF_GRASS:
+            # a few worn, earthy patches in the meadows
+            worn = sstep(0.55, 0.95, noise2(X, Z, self.seed + 91, 0.11)) * sstep(GROUND - 0.2, GROUND - 0.05, H) * (1 - rock)
+            c = blend(c, blend(c, P("path"), 0.35), worn * 0.6)
+            surf = surf + (SURF_DIRT - surf) * worn * 0.55
+        return np.clip(c, 0, 1), np.clip(surf, 0, 1)
 
     # ── water ──
     def water(self, step=3.0, ext=WATER_R + 3):
@@ -388,36 +446,56 @@ class Zone:
         export_glb(os.path.join(outdir, name + ".glb"), objs)
 
 
-def ribbon_mesh(zone, name, y=GROUND + 0.025):
-    """Smooth path ribbons (with a darker border) laid on the flat walkable ground."""
+def flat_poly(geom, y, color, surf, min_area=0.05):
+    """Flat triangulated polygons (holes kept) at height y, one colour, colour alpha = surface type."""
+    parts = []
+    for g in (list(geom.geoms) if hasattr(geom, "geoms") else [geom]):
+        if g.is_empty or g.area < min_area or g.geom_type != "Polygon":
+            continue
+        ext = list(g.exterior.coords)[:-1]
+        if len(ext) < 3:
+            continue
+        bm = bmesh.new()
+        col = bm.loops.layers.float_color.new("Col")
+        kl = bm.faces.layers.int.new("kind")
+        vs = [bm.verts.new(G(px, y, pz)) for (px, pz) in ext]
+        edges = [bm.edges.new((vs[k], vs[(k + 1) % len(vs)])) for k in range(len(vs))]
+        for hole in g.interiors:
+            hv = [bm.verts.new(G(px, y, pz)) for (px, pz) in list(hole.coords)[:-1]]
+            edges += [bm.edges.new((hv[k], hv[(k + 1) % len(hv)])) for k in range(len(hv))]
+        bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=edges)
+        bm.normal_update()
+        for f in bm.faces:
+            if f.normal.z < 0:
+                f.normal_flip()
+            f[kl] = KIND_TOON
+            for l in f.loops:
+                l[col] = (*color, surf)
+        bm.normal_update()
+        parts.append(Part(bm))
+    return parts
+
+def ribbon_mesh(zone, name, y=GROUND + 0.045):
+    """The made ground laid on the flat walkable land, drawn with the ground shader: plazas (paving
+    with a darker kerb) and the path network (dirt with a darker border; paths stop at a plaza's edge).
+    The four layers are cut from each other, so they lie side by side at one height and never overlap
+    (nothing to z-fight); y clears the terrain's small bumps."""
     a = Asset(name)
-    rng = random.Random(zone.seed + 9)
     pal = zone.pal
-    for (ls, w) in zone.paths:
-        for (width, color, dy) in ((w + 0.5, mix(hexrgb(pal["path"]), (0.25, 0.18, 0.1), 0.25), 0.0), (w, hexrgb(pal["path"]), 0.012)):
-            poly = ls.buffer(width / 2, quad_segs=4)
-            poly = poly.intersection(zone.walk_land.buffer(-0.2))
-            geoms = list(poly.geoms) if hasattr(poly, "geoms") else [poly]
-            for g in geoms:
-                if g.is_empty or g.area < 0.5 or g.geom_type != "Polygon":
-                    continue
-                g = g.simplify(0.15)
-                ext = list(g.exterior.coords)[:-1]
-                if len(ext) < 3:
-                    continue
-                bm = bmesh.new()
-                vs = [bm.verts.new(G(px, y + dy, pz)) for (px, pz) in ext]
-                edges = [bm.edges.new((vs[k], vs[(k + 1) % len(vs)])) for k in range(len(vs))]
-                for hole in g.interiors:
-                    hv = [bm.verts.new(G(px, y + dy, pz)) for (px, pz) in list(hole.coords)[:-1]]
-                    edges += [bm.edges.new((hv[k], hv[(k + 1) % len(hv)])) for k in range(len(hv))]
-                bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=edges)
-                bm.normal_update()
-                for f in bm.faces:
-                    if f.normal.z < 0:
-                        f.normal_flip()
-                bm.normal_update()
-                a.add(finish_part(bm, color, KIND_TOON, False, rng, 0.04, Matrix.Identity(4)))
+    land = zone.walk_land.buffer(-0.2)
+    empty = Polygon()
+    plaza = unary_union(zone.plazas).simplify(0.05).intersection(land) if zone.plazas else empty
+    outer = fill = empty
+    if zone.paths:
+        outer = unary_union([ls.buffer((w + 0.5) / 2, quad_segs=4) for (ls, w) in zone.paths]).simplify(0.1).intersection(land).difference(plaza)
+        fill = unary_union([ls.buffer(w / 2, quad_segs=4) for (ls, w) in zone.paths]).simplify(0.1).intersection(land).difference(plaza)
+    kerb = plaza.buffer(0.35, quad_segs=8).intersection(land).difference(plaza).difference(outer) if not plaza.is_empty else empty
+    pc, pth = hexrgb(pal["plaza"]), hexrgb(pal["path"])
+    layers = [(kerb, mix(pc, (0.22, 0.2, 0.18), 0.32), SURF_PAVING), (plaza, pc, SURF_PAVING),
+              (outer.difference(fill), mix(pth, (0.25, 0.18, 0.1), 0.25), SURF_DIRT), (fill, pth, SURF_DIRT)]
+    for (geom, color, surf) in layers:
+        if not geom.is_empty:
+            a.add(flat_poly(geom, y, color, surf))
     return a
 
 def waterfall_mesh(name, x, z, top, width=6.0, bottom=-0.1, face=1):
@@ -497,7 +575,8 @@ def ice_mesh(z, name="ice", y=GROUND - 0.05, color=0xcfe8f6):
         for f in bm.faces:
             if f.normal.z < 0:
                 f.normal_flip()
-        p = finish_part(bm, color, KIND_TOON, False, rng, 0.05, Matrix.Identity(4))
+        # one even colour: per-face variation on these long fill triangles reads as streaks
+        p = finish_part(bm, color, KIND_TOON, False, rng, 0.0, Matrix.Identity(4))
         a.add(p)
     # snowy rims around each hole, and pale cracks on the ice
     for poly in holes:

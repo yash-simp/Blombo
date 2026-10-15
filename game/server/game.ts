@@ -6,7 +6,6 @@ import {
   GUIDE_QUESTS,
   INDEX_TIERS,
   PAID_SKINS,
-  REELS,
   RODS,
   type Goal,
   type Reward,
@@ -429,8 +428,5 @@ export function checkAchievements(p: Live): void {
 
 export function knownSkin(skin: string): boolean {
   return (SKINS as readonly string[]).includes(skin)
-}
-export function reelZone(p: Live): number {
-  return REELS[p.save.reel]?.zone ?? 0.22
 }
 export { GUIDE_QUESTS }

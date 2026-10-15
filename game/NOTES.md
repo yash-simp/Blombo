@@ -22,6 +22,25 @@ no paid random items; rewarded videos only when useful (never on a timer or at j
 - Client: `src/world/zones.ts` draws zones (instanced props, water shader, halos, fireflies, NPCs),
   `src/fishing/controller.ts` runs cast/bite/fight/showcase, `src/App.vue` is the HUD (goal pill,
   one message line, corners, ActionDock, cards, Celebrate banners/confetti/coins).
+- The reel fight is tap to reel (creator: "make it so we click to catch it"): `src/fishing/fight.ts`
+  with FIGHT in `server/rules.ts`. Each tap fills the meter by gear power (√rod power × reel tap power),
+  at most 0.17 a tap so every catch takes 5+ taps; the fish pulls it down (with surges) from the first
+  tap, or after 1.5 s. About 8/10/14/18/24/30 taps from Common to Mythic on the twig rod, 5..7 on the
+  best gear. The meter fills at most one full tap per 0.1 s (a quicker tap is worth its share, so faster
+  tapping never reels slower); `minFightMs` is the fastest catch at that cap and the server rejects a
+  Reel more than 100 ms quicker. A tap before the bite never cancels the cast (only the Reel in chip or
+  walking away does). ActionDock keeps the big button in a fixed middle column (chips never move it) and
+  shows the bait chip only between casts (a slip onto it mid-fight would open the shop). Tests simulate it.
+- Ground (creator: "all textures are shit" — flat purple triangles at night): terrain is smooth-shaded
+  with per-vertex colours (steep rock faces stay flat-shaded, one colour each); slopes and normals use
+  a 1.6 m step so chunks and `__lod` copies match. The vertex colour ALPHA is the surface type (1 grass,
+  0.67 dirt/rock/path, 0.33 sand/snow, 0 paving). `public/models/ground_detail.webp` (made by
+  pipeline/blender/ground_tex.py: R grass, G sand, B cobbles, A dirt) is sampled top-down by
+  `groundMaterial()` in `src/assets/materials.ts`; it loads without blocking start (neutral until then),
+  fades with distance and on cliffs, and the low quality level uses a one-sample version. New zone GLBs
+  and the new code belong together (old GLBs have alpha 1 = grass everywhere). Night/dusk/dawn light in
+  `server/sky.ts` is neutral-cool (no purple). `src/sight/ground.ts` renders a piece of the plaza at
+  night in rain with the engine's own look (previewShot module).
 - Paid: `server/paid.ts` + `src/paid.ts` are examples/blogem-purchase copied as-is (M4 wires the
   client half and the shop tab).
 
@@ -76,4 +95,5 @@ upright are asked to rotate. The harness checks desktop and phone landscape.
   the Index, bag/aquarium, catch card and tournament board. Weather visuals (src/world/weather.ts: rain,
   storm + lightning, snow on Frost Lake, night aurora). Tournament stage show (src/world/stage.ts
   scoreboard + src/world/fireworks.ts).
+- Tap to catch fishing and the textured ground: done (see above).
 - Later (creator: "build later"): richer decoration for the five new islands, a review pass.
