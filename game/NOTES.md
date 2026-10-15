@@ -72,5 +72,8 @@ upright are asked to rotate. The harness checks desktop and phone landscape.
 - Blogem shop tab (src/paidClient.ts + example src/paid.ts), rewarded videos only where useful: Lucky
   Bait (bait tab), Double Sale (bag at a market, bag worth 50+), Re-hook (10 s after a Rare+ escape).
 - Home aquariums with the owner's fish and name board, champion crown (src/world/homes.ts).
-- Not done yet (next): illustrated fish icons for Index/bag, rain/snow/aurora visuals, more polish of
-  the new islands (they are lighter than Lantern Lake), the tournament stage show.
+- Fish icon atlas (pipeline/blender/fish_icons.py -> public/models/fish_icons.webp; src/ui/FishIcon.vue) in
+  the Index, bag/aquarium, catch card and tournament board. Weather visuals (src/world/weather.ts: rain,
+  storm + lightning, snow on Frost Lake, night aurora). Tournament stage show (src/world/stage.ts
+  scoreboard + src/world/fireworks.ts).
+- Later (creator: "build later"): richer decoration for the five new islands, a review pass.

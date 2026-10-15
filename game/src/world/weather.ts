@@ -6,6 +6,7 @@
 import {
   AdditiveBlending,
   BackSide,
+  BufferAttribute,
   BufferGeometry,
   DoubleSide,
   Float32BufferAttribute,
@@ -29,11 +30,13 @@ import { quality } from "./quality"
 // Shader graphs are built with TSL's untyped chain API (its generics cannot follow node arithmetic).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const L = TSL as any
+/** A TSL node (untyped, see above). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Node = any
 
 /** What the weather needs from the game. */
 export interface WeatherHost {
   camera: { matrixWorld: Matrix4; getWorldDirection(target: Vector3): Vector3 }
-  player: { position: { x: number; z: number } }
   local: { add(object: Object3D, cleanup: () => void): () => void }
 }
 
@@ -43,8 +46,10 @@ const FROST = ZONES.findIndex((z) => z.key === "frost")
 /** The water surface (splash rings sit here too). */
 const WATER_Y = 0.07
 const RAIN_CAP = 2600
-const SNOW_CAP = 1800
+const SNOW_CAP = 2600
 const RIPPLE_CAP = 150
+/** Streak width in metres. */
+const RAIN_WIDTH = 0.045
 /** How hard it falls: drizzle-ish rain, full storm. */
 const PRECIP: Record<string, number> = { rain: 0.6, storm: 1 }
 
@@ -66,7 +71,7 @@ function seeds(count: number, w: (i: number) => number): InstancedBufferAttribut
 }
 
 /** Places a world-anchored point inside a box that travels with the camera (wrapping on each axis). */
-function wrapInBox(point: any, origin: any, size: any): { p: any; e: any } {
+function wrapInBox(point: Node, origin: Node, size: Node): { p: Node; e: Node } {
   const rel = point.sub(origin)
   const wrapped = rel.sub(size.mul(L.floor(rel.div(size))))
   // e: 0 at the box centre, 1 at its faces (used to fade drops before they wrap)
@@ -105,7 +110,7 @@ class Precip {
 
     const s = L.instancedBufferAttribute(seed)
     const size = L.vec3(box.x, box.y, box.z)
-    const start = s.xyz.mul(size).add(this.drift.mul(s.w))
+    const start = s.xyz.mul(size).add(L.mul(this.drift, s.w))
     const { p, e } = wrapInBox(start, this.origin, size)
     const local = L.positionLocal
     const t = L.time
@@ -113,24 +118,31 @@ class Precip {
     const edge = L.float(1).sub(L.smoothstep(0.72, 1.0, L.max(e.x, e.z))).mul(L.float(1).sub(L.smoothstep(0.7, 1.0, e.y)))
     let center = p
     if (kind === "snow") center = p.add(L.vec3(L.sin(t.mul(1.3).add(s.x.mul(40))).mul(0.35), 0, L.cos(t.mul(1.1).add(s.z.mul(40))).mul(0.35)))
-    const near = L.smoothstep(kind === "rain" ? 1.6 : 1.0, kind === "rain" ? 4.0 : 2.5, L.length(center.sub(L.cameraPosition)))
+    // the rest is in view space: no camera uniforms needed beyond the view matrix
+    const view = L.cameraViewMatrix.mul(L.vec4(center, 1)).xyz
+    const near = L.smoothstep(kind === "rain" ? 1.6 : 2.0, 4.0, L.length(view))
     const fade = L.varying(edge.mul(near).mul(L.step(WATER_Y, center.y)))
     const material = new MeshBasicNodeMaterial()
     if (kind === "rain") {
-      // a thin streak from the drop back along its motion, turned to face the camera
-      const side = L.normalize(L.cross(this.dir, L.cameraPosition.sub(p)).add(L.vec3(0.0001, 0, 0)))
-      const world = p.add(side.mul(local.x.mul(0.035))).sub(this.dir.mul(local.y.add(0.5).mul(this.len).mul(s.w)))
-      material.vertexNode = L.cameraProjectionMatrix.mul(L.cameraViewMatrix.mul(L.vec4(world, 1)))
+      // a thin streak from the drop back along its motion; its width lies across the motion on screen
+      const dv = L.cameraViewMatrix.mul(L.vec4(this.dir, 0)).xyz
+      const onScreen = L.vec2(dv.x.mul(view.z).sub(view.x.mul(dv.z)), dv.y.mul(view.z).sub(view.y.mul(dv.z)))
+      const side = L.normalize(L.vec2(onScreen.y.negate(), onScreen.x).add(L.vec2(0.00001, 0)))
+      const w = local.x.mul(RAIN_WIDTH)
+      const pos = view.sub(dv.mul(local.y.add(0.5).mul(this.len).mul(s.w))).add(L.vec3(side.x.mul(w), side.y.mul(w), 0))
+      material.vertexNode = L.cameraProjectionMatrix.mul(L.vec4(pos, 1))
       const uv = L.uv()
       const across = L.float(1).sub(uv.x.mul(2).sub(1).abs())
       const along = L.float(1).sub(uv.y.mul(0.8))
       material.colorNode = L.vec3(0.8, 0.88, 0.98).mul(this.light)
       material.opacityNode = across.mul(along).mul(fade).mul(this.amount).mul(0.62)
+      // the side vector can flip the quad's winding: draw both faces, in one pass
+      material.side = DoubleSide
+      material.forceSinglePass = true
     } else {
       // a soft round flake facing the camera
-      const view = L.cameraViewMatrix.mul(L.vec4(center, 1))
       const r = s.w.mul(0.1)
-      material.vertexNode = L.cameraProjectionMatrix.mul(L.vec4(view.xyz.add(L.vec3(local.x.mul(r), local.y.mul(r), 0)), 1))
+      material.vertexNode = L.cameraProjectionMatrix.mul(L.vec4(view.add(L.vec3(local.x.mul(r), local.y.mul(r), 0)), 1))
       const d = L.length(L.uv().sub(L.vec2(0.5, 0.5))).mul(2)
       material.colorNode = L.vec3(0.96, 0.98, 1).mul(this.light)
       material.opacityNode = L.float(1).sub(L.smoothstep(0.3, 1.0, d)).mul(fade).mul(this.amount).mul(0.92)
@@ -217,6 +229,7 @@ class Ripples {
     material.transparent = true
     material.depthWrite = false
     material.side = DoubleSide
+    material.forceSinglePass = true
     material.fog = false
     material.name = "weather_ripples"
     this.material = material
@@ -243,12 +256,12 @@ class Ripples {
 
 /** Curtain layout: arc from..to (radians from north, east positive), radius, base height, height, seed, gain. */
 const CURTAINS: [number, number, number, number, number, number, number][] = [
-  [-1.25, 0.05, 116, 13, 44, 0.13, 1],
-  [-0.55, 0.75, 126, 18, 48, 0.57, 0.9],
-  [0.35, 1.45, 112, 11, 40, 0.91, 0.85],
+  [-1.25, 0.05, 116, 15, 50, 0.13, 1],
+  [-0.55, 0.75, 124, 19, 46, 0.57, 0.9],
+  [0.35, 1.45, 112, 14, 48, 0.91, 0.85],
   // high quality extras
-  [-0.95, 0.25, 104, 24, 34, 0.33, 0.6],
-  [1.15, 2.0, 120, 14, 38, 0.71, 0.55],
+  [-0.95, 0.25, 104, 26, 36, 0.33, 0.6],
+  [1.15, 2.0, 120, 16, 42, 0.71, 0.55],
 ]
 const CURTAINS_LOW = 3
 const CURTAIN_SEGMENTS = 40
@@ -336,6 +349,7 @@ class Aurora {
     this.material.depthWrite = false
     this.material.blending = AdditiveBlending
     this.material.side = DoubleSide
+    this.material.forceSinglePass = true
     this.material.fog = false
     this.material.name = "weather_aurora"
     this.mesh = new Mesh(this.geometry, this.material)
@@ -401,14 +415,17 @@ class Lightning {
 
     // bolt: camera-facing ribbons, a hot core inside a soft glow
     const boltGeo = new BufferGeometry()
-    boltGeo.setAttribute("position", new Float32BufferAttribute(this.boltPos, 3))
-    boltGeo.setAttribute("uv", new Float32BufferAttribute(this.boltUv, 2))
+    // BufferAttribute keeps these arrays (Float32BufferAttribute would copy them): strikes rewrite them
+    boltGeo.setAttribute("position", new BufferAttribute(this.boltPos, 3))
+    boltGeo.setAttribute("uv", new BufferAttribute(this.boltUv, 2))
     boltGeo.setDrawRange(0, 0)
     const boltMat = new MeshBasicNodeMaterial()
     const across = L.float(1).sub(L.uv().x.mul(2).sub(1).abs())
     const core = L.smoothstep(0.72, 0.92, across)
-    boltMat.colorNode = L.vec3(0.82, 0.88, 1).mul(core.mul(1.6).add(L.pow(across, 3).mul(0.55))).mul(this.boltFlash)
+    const tint = L.mix(L.vec3(0.55, 0.62, 1), L.vec3(1, 1, 1), core)
+    boltMat.colorNode = tint.mul(core.mul(1.6).add(L.pow(across, 3).mul(0.6))).mul(this.boltFlash)
     boltMat.side = DoubleSide
+    boltMat.forceSinglePass = true
     this.bolt = this.flashMesh(boltGeo, boltMat, "weather_bolt", -1)
   }
 
@@ -443,7 +460,7 @@ class Lightning {
     const env = s < 0.07 ? 1 : s < 0.13 ? 0.3 : s < 0.22 ? 0.85 : Math.max(0, 0.85 * (1 - (s - 0.22) / 0.5))
     this.flash = env
     this.skyFlash.value = env
-    this.pulseFlash.value = env * 0.16
+    this.pulseFlash.value = env * 0.1
     this.boltFlash.value = s < 0.34 ? env : 0
     this.sky.visible = env > 0.002
     this.pulse.visible = env > 0.002
@@ -453,8 +470,8 @@ class Lightning {
 
   private strike(camera: Vector3, forward: Vector3, low: boolean): void {
     this.since = 0
-    // somewhere ahead of the camera, so the player sees it
-    const a = Math.atan2(forward.x, -forward.z) + (Math.random() - 0.5) * 1.3
+    // just ahead of the camera, so it shows even in a narrow portrait view
+    const a = Math.atan2(forward.x, -forward.z) + (Math.random() - 0.5) * 0.6
     const dx = Math.sin(a)
     const dz = -Math.cos(a)
     this.towards.value.set(dx, dz)
@@ -538,8 +555,8 @@ class Lightning {
 
 export class Weather {
   readonly root = new Group()
-  private readonly rain = new Precip("rain", RAIN_CAP, new Vector3(30, 16, 30))
-  private readonly snow = new Precip("snow", SNOW_CAP, new Vector3(26, 13, 26))
+  private readonly rain = new Precip("rain", RAIN_CAP, new Vector3(26, 14, 26))
+  private readonly snow = new Precip("snow", SNOW_CAP, new Vector3(22, 12, 22))
   private readonly ripples = new Ripples(RIPPLE_CAP)
   private readonly aurora = new Aurora()
   private readonly lightning = new Lightning()
@@ -574,10 +591,17 @@ export class Weather {
     if (!(dt > 0)) return
     dt = Math.min(dt, 0.1)
     this.clock += dt
+    const camera = this.host.camera
+    this.cam.setFromMatrixPosition(camera.matrixWorld)
+    camera.getWorldDirection(this.fwd)
+    this.fwd.y = 0
+    if (this.fwd.lengthSq() < 1e-6) this.fwd.set(0, 0, -1)
+    this.fwd.normalize()
+
     const sky = currentSky()
     const night = nightFactor(sky)
-    const p = this.host.player.position
-    const frost = zoneAt(p.x, p.z) === FROST
+    // by the camera, not the player: it follows the boat on a ride
+    const frost = zoneAt(this.cam.x, this.cam.z) === FROST
     const fall = PRECIP[sky.weather] ?? 0
     const lv = this.level
     lv.rain = approach(lv.rain, frost ? 0 : fall, dt)
@@ -586,13 +610,6 @@ export class Weather {
     lv.aurora = approach(lv.aurora, sky.weather === "aurora" ? night : 0, dt)
     const low = quality.level === "low"
     const share = low ? 0.5 : 1
-
-    const camera = this.host.camera
-    this.cam.setFromMatrixPosition(camera.matrixWorld)
-    camera.getWorldDirection(this.fwd)
-    this.fwd.y = 0
-    if (this.fwd.lengthSq() < 1e-6) this.fwd.set(0, 0, -1)
-    this.fwd.normalize()
 
     // wind: a slow turn shared by everyone (server clock), gusting; storms blow hard
     const t = this.clock

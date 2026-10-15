@@ -100,12 +100,12 @@ function fromAquarium(uid: number): void {
 
 <style scoped>
 .bag {
-  width: 900px;
+  width: 1000px;
 }
 .row__fish {
-  width: 116px;
-  height: 116px;
-  margin: -18px -4px -18px -6px;
+  width: 108px;
+  height: 108px;
+  margin: -16px -6px -16px -8px;
 }
 .bag__count {
   margin-left: auto;

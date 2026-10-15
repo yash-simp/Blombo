@@ -9,6 +9,8 @@ import { assetUrl } from "../assets/gltf"
 const COLS = 8
 const ROWS = Math.ceil(SPECIES.length / COLS)
 const SHEET = `url("${assetUrl("models/fish_icons.webp")}")`
+// Warm the atlas when the HUD loads so the first catch card never shows an empty icon.
+if (typeof Image !== "undefined") new Image().src = assetUrl("models/fish_icons.webp")
 
 const props = defineProps<{ species: number; shiny?: boolean; unknown?: boolean }>()
 const sprite = computed(() => {

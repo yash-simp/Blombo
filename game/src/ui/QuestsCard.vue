@@ -4,6 +4,7 @@ import { computed, ref } from "vue"
 import type { IGame } from "@blombo/game-runtime"
 import { t } from "@/text"
 import Icon from "./Icon.vue"
+import FishIcon from "./FishIcon.vue"
 import { store } from "../net"
 import { ACHIEVEMENTS, DAILY_POOL, dailyScale, guideQuest, levelOf, tourneyAt } from "../../server/rules.ts"
 import { baitName, clock, fishName, goalText, num } from "./format"
@@ -68,6 +69,7 @@ function claim(i: number): void {
         <article v-for="(e, i) in store.tourney?.board ?? []" :key="e.u" class="row" :class="{ me: e.u === store.userId }">
           <b class="rank">{{ i + 1 }}</b>
           <Icon v-if="e.u === store.tourney?.crown" name="crown" class="row__icon" />
+          <FishIcon :species="e.sp" class="row__fish" />
           <div class="row__main">
             <strong>{{ e.n }}</strong>
             <small>{{ fishName(e.sp) }} · {{ t("hud.size_pct", { pct: e.s }) }}</small>
@@ -118,6 +120,11 @@ function claim(i: number): void {
 .row__icon {
   width: 76px !important;
   height: 76px !important;
+}
+.row__fish {
+  width: 116px;
+  height: 116px;
+  margin: -18px -4px;
 }
 .row--gold {
   border-left-color: #ffbf3a;

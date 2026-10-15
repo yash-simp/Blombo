@@ -404,5 +404,16 @@
  "shop.units": "You have {n}",
  "shop.auto_on": "Auto-Reel on",
  "shop.auto_off": "Auto-Reel off",
- "shop.equip": "Use it"
+ "shop.equip": "Use it",
+ "stage.title": "Lantern Cup",
+ "stage.rule": "Biggest fish for its kind wins!",
+ "stage.ends": "LIVE · ends in {time}",
+ "stage.final": "Final whistle!",
+ "stage.next": "Next cup in {time}",
+ "stage.soon": "Starting in {time}!",
+ "stage.champion": "Champion",
+ "stage.no_champion": "No champion yet",
+ "stage.win_next": "Win the next cup!",
+ "stage.last": "Last cup",
+ "stage.started": "Tournament time!"
 }

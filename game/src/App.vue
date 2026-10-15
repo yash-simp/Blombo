@@ -19,6 +19,8 @@ import { bindNet, on, store } from "./net"
 import { fishUi, Fishing } from "./fishing/controller"
 import { Beacon } from "./world/beacon"
 import { Homes } from "./world/homes"
+import { Weather } from "./world/weather"
+import { Stage } from "./world/stage"
 import type { World } from "./world/zones"
 import { BAITS, REELS, RODS, SPECIES, ZONES, levelOf, tourneyAt } from "../server/rules.ts"
 import { RARITY_CSS, baitName, clock, fishName, goalText, num, questGoal, shortNum, zoneName } from "./ui/format"
@@ -160,6 +162,12 @@ onMounted(async () => {
     const homes = new Homes(g, started.world)
     subscriptions.push(() => homes.dispose())
     subscriptions.push(g.on("frame", ({ dt }) => homes.update(dt)))
+    const weather = new Weather(g)
+    subscriptions.push(() => weather.dispose())
+    subscriptions.push(g.on("frame", ({ dt }) => weather.update(dt)))
+    const stage = new Stage(g, started.world)
+    subscriptions.push(() => stage.dispose())
+    subscriptions.push(g.on("frame", ({ dt }) => stage.update(dt)))
     beacon = new Beacon()
     subscriptions.push(g.local.add(beacon.root, () => beacon?.dispose()))
     subscriptions.push(g.on("frame", ({ dt }) => frame(g, dt)))
@@ -317,6 +325,14 @@ function wireEvents(g: IGame): (() => void)[] {
     }),
   ]
 }
+
+// a tournament round just began (not on joining one already running): a banner (the stage sets off fireworks)
+watch(
+  () => store.tourney?.live,
+  (live, was) => {
+    if (live && was === false) celebrate.value?.banner({ title: t("stage.started"), lines: [t("stage.rule")], icon: "trophy", color: "#ffb52e", big: true })
+  },
+)
 
 // slow phones get the low quality level (shorter draw distances, no prop shadows, lower resolution)
 watch(

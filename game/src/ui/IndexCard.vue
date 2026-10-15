@@ -61,7 +61,7 @@ function when(i: number): string {
 
 <style scoped>
 .index {
-  width: 1000px;
+  width: 1120px;
 }
 .index__count {
   margin-left: auto;
@@ -100,7 +100,7 @@ function when(i: number): string {
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 .tile {
@@ -109,12 +109,14 @@ function when(i: number): string {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 12px 10px 14px;
+  padding: 12px 6px 14px;
   border: 5px solid #0b1a2a;
   border-top: 14px solid var(--rc);
   border-radius: 24px;
   background: #1b3f5e;
   text-align: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .tile strong {
   font-size: 48px;
