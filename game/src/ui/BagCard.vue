@@ -7,6 +7,7 @@ import Icon from "./Icon.vue"
 import { store } from "../net"
 import { SPECIES, fishValue } from "../../server/rules.ts"
 import { RARITY_CSS, fishName, kg, num } from "./format"
+import { PLACEMENTS, paidUi, units, use, watchFor } from "../paidClient"
 
 const props = defineProps<{ game: IGame; nearMarket: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -27,6 +28,11 @@ function sellAll(): void {
 }
 function sellOne(uid: number): void {
   props.game.remotes.send("Sell", { all: false, ids: [uid] })
+}
+function saleBoost(): void {
+  if (units("sale_boost_1") > 0) use("sale_boost_1")
+  else watchFor(PLACEMENTS.sale, "sale_boost_1")
+  emit("close")
 }
 function lock(uid: number): void {
   props.game.remotes.send("Lock", uid)
@@ -83,6 +89,9 @@ function fromAquarium(uid: number): void {
       <button v-if="nearMarket" type="button" class="big big--gold" :disabled="!total" @click="sellAll">
         <Icon name="coin" />{{ t("bag.sell_all", { coins: num(total) }) }}
       </button>
+      <button v-if="nearMarket && total >= 50 && (units('sale_boost_1') > 0 || paidUi.ads[PLACEMENTS.sale])" type="button" class="big big--video" @click="saleBoost">
+        <Icon :name="units('sale_boost_1') > 0 ? 'coin' : 'video'" />{{ units("sale_boost_1") > 0 ? t("shop.sale_use", { n: units("sale_boost_1") }) : t("shop.sale_video") }}
+      </button>
       <p v-else class="bag__hint">{{ t("bag.sell_here") }}</p>
     </footer>
   </section>
@@ -100,6 +109,14 @@ function fromAquarium(uid: number): void {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.card__foot {
+  flex-wrap: wrap;
+}
+.big--video {
+  background: linear-gradient(#ffe27a, #ff9a3c);
+  color: #3a2000;
+  -webkit-text-stroke: 0;
 }
 .bag__empty,
 .bag__hint {

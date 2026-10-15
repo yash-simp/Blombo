@@ -30,7 +30,7 @@
     "PaidUsed": "{ id: string; result: string }"
   },
   "state": {
-    "Me": "{ coins: number; xp: number; rod: number; rods: number; reel: number; bag: number; zones: number; boats: number; boat: number; bait: { id: string; n: number }[]; baitEq: string[]; skin: string; skins: string[]; title: string; titles: string[]; tut: number; auto: boolean; plot: number; zone: number; sold: number; catches: number; perfect: number; streak: number; loginReady: boolean; giftReady: boolean; rehook: number }",
+    "Me": "{ coins: number; xp: number; rod: number; rods: number; reel: number; bag: number; zones: number; boats: number; boat: number; bait: { id: string; n: number }[]; baitEq: string[]; skin: string; skins: string[]; title: string; titles: string[]; tut: number; auto: boolean; plot: number; zone: number; sold: number; catches: number; perfect: number; streak: number; loginReady: boolean; giftReady: boolean; rehook: number; lucky: number }",
     "Bag": "{ cap: number; fish: number[][] }",
     "Dex": "{ c: number[]; b: number[]; sh: number[]; ir: number[] }",
     "Quests": "{ q: number; qp: number; qn: number; qdone: boolean; day: number; d: { id: string; p: number; n: number; done: boolean; claimed: boolean }[]; ach: string[] }",

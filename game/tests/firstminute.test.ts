@@ -286,3 +286,42 @@ test("a full room of 24 anglers stays well inside the tick budget", async () => 
   assert.equal(room.status, "running", room.log.join("\n"))
   room.close()
 })
+
+test("sailing: a captain takes you to an unlocked water, and its market buys your fish", async () => {
+  const room = await createScriptTest()
+  const ann = await joinReady(room, { name: "Ann" })
+  await room.run("server/game.ts", (m, id) => {
+    const p = m.live.get(id)
+    p.save.tut = 3
+    p.save.zones = 0b11
+    p.save.fish = [[1, 0, 400, 0]]
+    p.save.uid = 2
+  }, ann.userId)
+  const captain = await anchor(room, "captain")
+  ann.moveTo(captain.x, captain.y, captain.z + 2)
+  await room.tick(1)
+  ann.send("Travel", 1)
+  await room.tick(2)
+  const rides = ann.events("Ride") as { from: number; to: number; ms: number }[]
+  assert.equal(rides.length, 1, "the ride starts")
+  assert.equal(rides[0]!.to, 1)
+  await room.tick(ticksFor(rides[0]!.ms) + 2)
+  const at = ann.snapshot()
+  const willow = (await room.run("server/world.ts", (m) => m.anchor(1, "arrive"))) as { x: number; z: number }
+  assert.ok(Math.hypot(at.x - willow.x, at.z - willow.z) < 3, `arrived at Willow River (${at.x}, ${at.z})`)
+  assert.equal((ann.state("Me") as Me & { zone: number }).zone, 1)
+  const market = (await room.run("server/world.ts", (m) => m.anchor(1, "market"))) as { x: number; y: number; z: number }
+  ann.moveTo(market.x, market.y, market.z + 3)
+  await room.tick(1)
+  ann.send("Sell", { all: true, ids: [] })
+  await room.tick(2)
+  assert.equal((ann.state("Bag") as Bag).fish.length, 0, "sold at Willow's market")
+  // a locked water cannot be sailed to
+  const willowCaptain = (await room.run("server/world.ts", (m) => m.anchor(1, "captain"))) as { x: number; y: number; z: number }
+  ann.moveTo(willowCaptain.x, willowCaptain.y, willowCaptain.z + 2)
+  await room.tick(1)
+  ann.send("Travel", 2)
+  await room.tick(2)
+  assert.equal(ann.events("Ride").length, 1, "Coral Bay is still locked")
+  room.close()
+})

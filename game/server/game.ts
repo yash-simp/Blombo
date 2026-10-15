@@ -183,6 +183,7 @@ export function sendMe(p: Live): void {
     loginReady: s.tut >= 3 && s.lclaim < today,
     giftReady: s.tut === 2,
     rehook: p.lastEscape && Date.now() - p.lastEscape.at < 45_000 ? p.lastEscape.species : -1,
+    lucky: Math.max(0, Math.ceil((p.lucky - Date.now()) / 1000)),
   })
 }
 

@@ -7,6 +7,7 @@ import Icon from "./Icon.vue"
 import { store } from "../net"
 import { BAG_COINS, BAG_SIZES, BAITS, BOATS, REELS, RODS, SKINS, levelOf } from "../../server/rules.ts"
 import { num } from "./format"
+import { PLACEMENTS, SHOP_ORDER, buy as buyPaid, owns, paidUi, product, units, use, watchFor } from "../paidClient"
 
 const props = defineProps<{ game: IGame; tab: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -23,7 +24,12 @@ function equip(kind: "rod" | "bait" | "skin" | "title" | "boat", id: string): vo
 const ownsRod = (i: number) => ((store.me?.rods ?? 1) >> i) & 1
 const baitHave = (id: string) => (id === "worm" ? -1 : (store.me?.bait.find((b) => b.id === id)?.n ?? 0))
 const baitOn = (id: string) => (store.me?.baitEq ?? []).includes(id)
-const ownsBoat = (i: number) => (BOATS[i]?.paid ? i === store.me?.boat || false : ((store.me?.boats ?? 1) >> i) & 1)
+const ownsBoat = (i: number) => (BOATS[i]?.paid ? owns(BOATS[i]!.paid!) : ((store.me?.boats ?? 1) >> i) & 1)
+const blogemRows = computed(() => SHOP_ORDER.map((id) => ({ id, p: product(id) })).filter((r) => !!r.p))
+const PAID_SKIN: Record<string, string> = { skin_rainbow: "rainbow", skin_dragon: "dragon", skin_candy: "candy" }
+function setAuto(on: boolean): void {
+  props.game.remotes.send("Setting", { auto: on })
+}
 </script>
 
 <template>
@@ -35,7 +41,7 @@ const ownsBoat = (i: number) => (BOATS[i]?.paid ? i === store.me?.boat || false 
       <button type="button" class="card__close" :aria-label="t('hud.close')" @click="emit('close')"><Icon name="close" /></button>
     </header>
     <div class="tabs">
-      <button v-for="k in ['rods', 'reels', 'bait', 'bag', 'boats', 'skins']" :key="k" type="button" :class="{ on: tab === k }" @click="tab = k">{{ t("tab." + k) }}</button>
+      <button v-for="k in ['rods', 'reels', 'bait', 'bag', 'boats', 'skins', 'blogems']" :key="k" type="button" :class="{ on: tab === k }" @click="tab = k">{{ t("tab." + k) }}</button>
     </div>
     <div class="card__content list" tabindex="-1">
       <template v-if="tab === 'rods'">
@@ -64,6 +70,20 @@ const ownsBoat = (i: number) => (BOATS[i]?.paid ? i === store.me?.boat || false 
         </article>
       </template>
       <template v-else-if="tab === 'bait'">
+        <article class="row row--lucky">
+          <Icon name="sparkle" class="row__icon" />
+          <div class="row__main">
+            <strong>{{ t("shop.lucky_title") }}<span v-if="(store.me?.lucky ?? 0) > 0" class="have"> · {{ t("shop.lucky_on", { s: store.me?.lucky ?? 0 }) }}</span></strong>
+            <small class="wrap">{{ t("shop.lucky_desc") }}</small>
+          </div>
+          <button v-if="units('lucky_bait_3') > 0" type="button" class="pill" :disabled="(store.me?.lucky ?? 0) > 0" @click="use('lucky_bait_3')">
+            {{ t("shop.use_lucky", { n: units("lucky_bait_3") }) }}
+          </button>
+          <button v-else-if="paidUi.ads[PLACEMENTS.lucky]" type="button" class="pill pill--video" :disabled="(store.me?.lucky ?? 0) > 0" @click="watchFor(PLACEMENTS.lucky, 'lucky_bait_3')">
+            <Icon name="video" />{{ t("shop.watch") }}
+          </button>
+          <button type="button" class="pill pill--gem" @click="buyPaid('lucky_bait_3')"><Icon name="blogem" />{{ product("lucky_bait_3")?.priceBlogems ?? "" }}</button>
+        </article>
         <article v-for="(bait, i) in BAITS" :key="bait.id" class="row" :class="{ sel: baitOn(bait.id) }">
           <Icon :name="bait.id === 'worm' ? 'worm' : 'bait'" class="row__icon" />
           <div class="row__main">
@@ -103,6 +123,27 @@ const ownsBoat = (i: number) => (BOATS[i]?.paid ? i === store.me?.boat || false 
           <button v-else-if="boat.paid" type="button" class="pill" disabled><Icon name="blogem" /></button>
           <button v-else type="button" class="pill pill--gold" :disabled="coins < boat.coins" @click="buy('boat', i)"><Icon name="coin" />{{ num(boat.coins) }}</button>
         </article>
+      </template>
+      <template v-else-if="tab === 'blogems'">
+        <p v-if="paidUi.state?.mode === 'test'" class="note">{{ t("shop.test") }}</p>
+        <article v-for="r in blogemRows" :key="r.id" class="row" :class="{ sel: r.p!.kind === 'permanent' && owns(r.id) }">
+          <Icon :name="r.id.startsWith('skin') ? 'sparkle' : r.id === 'vip_boat' ? 'boat' : r.id === 'auto_reel' ? 'gear' : r.id === 'sell_x2' ? 'coin' : r.id === 'bait_belt' ? 'bait' : 'blogem'" class="row__icon" />
+          <div class="row__main">
+            <strong>{{ r.p!.name }}</strong>
+            <small class="wrap">{{ r.p!.description }}</small>
+            <small v-if="r.p!.kind === 'consumable' && units(r.id) > 0" class="have">{{ t("shop.units", { n: units(r.id) }) }}</small>
+          </div>
+          <template v-if="r.p!.kind === 'permanent' && owns(r.id)">
+            <button v-if="r.id === 'auto_reel'" type="button" class="pill" :class="{ 'pill--blue': store.me?.auto }" @click="setAuto(!store.me?.auto)">
+              {{ store.me?.auto ? t("shop.auto_on") : t("shop.auto_off") }}
+            </button>
+            <button v-else-if="PAID_SKIN[r.id] && store.me?.skin !== PAID_SKIN[r.id]" type="button" class="pill" @click="equip('skin', PAID_SKIN[r.id]!)">{{ t("shop.equip") }}</button>
+            <button v-else-if="r.id === 'vip_boat' && store.me?.boat !== 3" type="button" class="pill" @click="equip('boat', 'yacht')">{{ t("shop.equip") }}</button>
+            <button v-else type="button" class="pill pill--blue" disabled>{{ t("shop.owned") }}</button>
+          </template>
+          <button v-else type="button" class="pill pill--gem" @click="buyPaid(r.id)"><Icon name="blogem" />{{ r.p!.priceBlogems }}</button>
+        </article>
+        <p v-if="!blogemRows.length" class="note">{{ t("shop.resting") }}</p>
       </template>
       <template v-else>
         <article class="row">
@@ -154,5 +195,24 @@ const ownsBoat = (i: number) => (BOATS[i]?.paid ? i === store.me?.boat || false 
 }
 .have {
   color: #9fe9ff;
+}
+.note {
+  margin: 0;
+  color: #cfe0ee;
+}
+.wrap {
+  white-space: normal !important;
+}
+.row--lucky {
+  border-left-color: #c07aff;
+  background: #2e2a5a;
+}
+.pill--gem {
+  background: linear-gradient(#d6a8ff, #8a4ae0);
+}
+.pill--video {
+  background: linear-gradient(#ffe27a, #ff9a3c);
+  color: #3a2000;
+  -webkit-text-stroke: 0;
 }
 </style>

@@ -18,11 +18,13 @@ import RideView from "./ui/RideView.vue"
 import { bindNet, on, store } from "./net"
 import { fishUi, Fishing } from "./fishing/controller"
 import { Beacon } from "./world/beacon"
+import { Homes } from "./world/homes"
 import type { World } from "./world/zones"
 import { BAITS, REELS, RODS, SPECIES, ZONES, levelOf, tourneyAt } from "../server/rules.ts"
 import { RARITY_CSS, baitName, clock, fishName, goalText, num, questGoal, shortNum, zoneName } from "./ui/format"
 import { currentSky, serverNow } from "./sky"
 import { quality, settings, watchFrame } from "./world/quality"
+import { PLACEMENTS, paidUi, refreshAds, startPaid, units, use, watchFor } from "./paidClient"
 
 const viewport = ref<HTMLElement | null>(null)
 const uiStyle = useGameUiScale(viewport)
@@ -46,6 +48,8 @@ const shownCoins = ref(0)
 const now = ref(Date.now())
 const feed = ref<{ id: number; text: string; color: string }[]>([])
 const ride = ref<{ from: number; to: number; ms: number; boat: number; at: number } | null>(null)
+/** A Rare+ fish just escaped: Re-hook is offered for a few seconds (a kept unit, else a free video). */
+const rehookUntil = ref(0)
 let alive = true
 let feedId = 0
 const subscriptions: (() => void)[] = []
@@ -141,6 +145,7 @@ onMounted(async () => {
     game.value = g
     world.value = started.world
     subscriptions.push(bindNet(g))
+    subscriptions.push(startPaid(g))
     subscriptions.push(...wireEvents(g))
     const updateConnection = () => {
       state.value = g.session === "online" ? "running" : g.session === "closed" ? "closed" : "connecting"
@@ -152,6 +157,9 @@ onMounted(async () => {
     if (!alive) return
     const f = new Fishing(g)
     fishing.value = f
+    const homes = new Homes(g, started.world)
+    subscriptions.push(() => homes.dispose())
+    subscriptions.push(g.on("frame", ({ dt }) => homes.update(dt)))
     beacon = new Beacon()
     subscriptions.push(g.local.add(beacon.root, () => beacon?.dispose()))
     subscriptions.push(g.on("frame", ({ dt }) => frame(g, dt)))
@@ -287,6 +295,10 @@ function wireEvents(g: IGame): (() => void)[] {
     on("CastNo", (reason) => say(t("toast." + reason))),
     on("Escaped", (e) => {
       if (e.r >= 0) say(t("hud.got_away"), 2400)
+      if (e.rehook) {
+        rehookUntil.value = Date.now() + 10_000
+        void refreshAds()
+      }
     }),
     on("Fx", (fx) => {
       if (fx.k !== "catch" || fx.u === store.userId) return
@@ -364,10 +376,18 @@ function closeCatch(): void {
   fishing.value?.dismissShowcase()
 }
 
-const luckyLeft = computed(() => {
-  now.value
-  return 0
+const offer = computed(() => {
+  if (now.value > rehookUntil.value) return null
+  const have = units("rehook_1")
+  if (have > 0) return { label: t("shop.rehook_use", { n: have }), icon: "rod", run: () => ((rehookUntil.value = 0), use("rehook_1")) }
+  if (paidUi.ads[PLACEMENTS.rehook]) return { label: t("shop.rehook_video"), icon: "video", run: () => ((rehookUntil.value = 0), watchFor(PLACEMENTS.rehook, "rehook_1")) }
+  return null
 })
+watch(
+  () => paidUi.hintAt,
+  () => paidUi.hint && say(paidUi.hint),
+)
+const luckyLeft = computed(() => store.me?.lucky ?? 0)
 const tourneyClock = computed(() => {
   const tt = tourney.value
   if (tt.live) return clock(tt.endsAt - serverNow())
@@ -394,7 +414,6 @@ const SKY_ICONS: Record<string, string> = { dawn: "sun", day: "sun", dusk: "suns
 const WEATHER_ICONS: Record<string, string> = { rain: "rain", fog: "fog", storm: "storm", aurora: "aurora" }
 const skyIcon = computed(() => SKY_ICONS[sky.value.phase] ?? "sun")
 const weatherIcon = computed(() => WEATHER_ICONS[sky.value.weather] ?? "sun")
-void luckyLeft
 void BAITS
 void ZONES
 void shortNum
@@ -427,6 +446,7 @@ void shortNum
           <p class="chip-line" :aria-label="t('hud.weather', { phase: t('phase.' + sky.phase), weather: t('weather.' + sky.weather) })">
             <Icon :name="skyIcon" /><Icon v-if="sky.weather !== 'clear'" :name="weatherIcon" />
           </p>
+          <p v-if="luckyLeft > 0" class="chip-line lucky" :aria-label="t('shop.lucky_title')"><Icon name="sparkle" /></p>
           <button v-if="tourneyClock" type="button" class="chip-line tourney" :class="{ 'tourney--live': tourney.live }" @click="openCard('quests')">
             <Icon name="trophy" /><span>{{ tourneyClock }}</span>
           </button>
@@ -456,6 +476,7 @@ void shortNum
           :fishing="fishing"
           :npc-name="npcName"
           :show-cast="store.me.tut >= 1"
+          :offer="offer"
           @talk="talk"
           @bait="openCard('shop', 'bait')"
         />
@@ -621,6 +642,9 @@ void shortNum
 }
 .tourney {
   pointer-events: auto;
+}
+.lucky {
+  background: linear-gradient(#d6a8ff, #8a4ae0);
 }
 .tourney--live {
   background: linear-gradient(#ffcf6a, #e8901a);

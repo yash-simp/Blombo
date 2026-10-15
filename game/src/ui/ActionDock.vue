@@ -9,7 +9,7 @@ import { fishUi, type Fishing } from "../fishing/controller"
 import { store } from "../net"
 import { RARITY_CSS, baitName } from "./format"
 
-const props = defineProps<{ game: IGame; fishing: Fishing; npcName: string; showCast: boolean }>()
+const props = defineProps<{ game: IGame; fishing: Fishing; npcName: string; showCast: boolean; offer?: { label: string; icon: string; run: () => void } | null }>()
 const emit = defineEmits<{ talk: []; bait: [] }>()
 
 const actionButton = ref<HTMLButtonElement | null>(null)
@@ -87,6 +87,7 @@ const fightStyle = computed(() => {
       <div class="reel__meter"><div class="reel__fill"></div></div>
       <span v-if="fight.perfect" class="reel__perfect">{{ t("hud.perfect") }}</span>
     </div>
+    <button v-if="offer && fishUi.phase === 'idle'" type="button" class="offer" @click="offer.run()"><Icon :name="offer.icon" />{{ offer.label }}</button>
     <div class="dock__row">
       <button v-show="showCast" type="button" class="chip chip--bait" :aria-label="t('hud.bait') + ': ' + bait" @click="emit('bait')">
         <Icon :name="baitIcon" />
@@ -136,6 +137,25 @@ const fightStyle = computed(() => {
   color: #3a2000;
   -webkit-text-stroke: 0;
   animation: pulse 0.35s ease-in-out infinite alternate;
+}
+.offer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 26px;
+  border: 5px solid #0b1a2a;
+  border-radius: 999px;
+  background: linear-gradient(#ffe27a, #ff9a3c);
+  color: #3a2000;
+  -webkit-text-stroke: 0;
+  font-size: 48px;
+  box-shadow: 0 7px 0 #0b1a2a;
+  pointer-events: auto;
+  animation: pulse 0.6s ease-in-out infinite alternate;
+}
+.offer :deep(.icon) {
+  width: 56px;
+  height: 56px;
 }
 .dock__row {
   display: flex;

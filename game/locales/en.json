@@ -393,5 +393,16 @@
  "profile.graphics": "Graphics",
  "profile.q_auto": "Auto",
  "profile.q_high": "High",
- "profile.q_low": "Low"
+ "profile.q_low": "Low",
+ "shop.lucky_title": "Lucky Bait",
+ "shop.lucky_desc": "Rarer fish bite for 3 minutes.",
+ "shop.lucky_on": "Lucky for {s}s",
+ "shop.sale_video": "Sell all x2: free video",
+ "shop.sale_use": "Sell all x2 ({n})",
+ "shop.rehook_video": "Re-hook it: free video",
+ "shop.rehook_use": "Re-hook it ({n})",
+ "shop.units": "You have {n}",
+ "shop.auto_on": "Auto-Reel on",
+ "shop.auto_off": "Auto-Reel off",
+ "shop.equip": "Use it"
 }

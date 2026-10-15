@@ -62,6 +62,7 @@ if (preset !== "new") {
     save.db[x.i] = Math.round(x.s.kg * 1200)
   }
   save.dsh[pick("lily_minnow")] = 1
+  if (preset === "late") save.aq = [[90, pick("bubblecarp"), 1900, 0], [91, pick("sunspot_bream"), 1100, 0], [92, pick("reed_pike"), 2900, 1], [93, pick("lily_minnow"), 170, 0]]
   save.ir[0] = preset === "late" ? 3 : 1
   save.lclaim = Math.floor(Date.now() / 86_400_000)
   save.streak = 3

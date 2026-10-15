@@ -9,6 +9,7 @@ import { cloneRoot } from "../../game/src/assets/packs"
 import { t } from "../platform/text"
 import { toonMaterial } from "./runtime"
 import { client, held, hooks, player } from "./api"
+import commerce from "../../game/commerce.json"
 
 export interface Started {
   game: any
@@ -122,7 +123,11 @@ export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElem
           return true
         },
         socketWorld: () => false,
-        attach: () => () => {},
+        attach: (_socket: string, object: Object3D) => {
+          object.position.y += 2.25
+          avatar.root.add(object)
+          return () => avatar.root.remove(object)
+        },
       },
       get: () => null,
       defineItem: () => {},
@@ -156,7 +161,13 @@ export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElem
         o.button?.removeEventListener("pointerup", pup)
       }
     },
-    commerce: {},
+    commerce: {
+      catalog: async () => ({ ok: true, value: { mode: "test", holdDays: 7, products: (commerce as any).products } }),
+      state: async () => ({ ok: true, value: { mode: "test", items: [] } }),
+      rewardedAds: async (ids: string[]) => ({ ok: true, value: { mode: "test", delivery: "simulated", placements: ids.map((placementId) => ({ placementId, available: true })) } }),
+      promptPurchase: async () => ({ ok: false, reason: "cancelled" }),
+      showRewardedAd: async () => ({ ok: false, reason: "declined" }),
+    },
     dispose: () => renderer.dispose(),
   }
 

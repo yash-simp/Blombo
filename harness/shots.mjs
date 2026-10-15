@@ -133,6 +133,23 @@ const FLOWS = {
       await sleep(300)
     }
   },
+  async shop(page, shot) {
+    await page.goto(BASE + "?save=mid&at=market&phase=day&weather=clear")
+    await until(page, () => window.__harness?.store?.me && window.__harness.world?.zones.size > 0)
+    await sleep(800)
+    await click(page, ".menu__b:nth-child(1)")
+    await sleep(400)
+    await page.locator(".tabs button", { hasText: "Bait" }).first().click({ force: true })
+    await sleep(400)
+    await shot("27-shop-bait")
+    await page.locator(".tabs button", { hasText: "Blogem" }).first().click({ force: true })
+    await sleep(500)
+    await shot("28-shop-blogems")
+    await click(page, ".card__close")
+    await click(page, ".counter--bag")
+    await sleep(500)
+    await shot("29-bag-sale-offer")
+  },
   async night(page, shot) {
     await page.goto(BASE + "?save=mid&at=plaza&phase=night")
     await until(page, () => window.__harness?.store?.me && window.__harness.world?.zones.size > 0)
@@ -141,6 +158,34 @@ const FLOWS = {
     await teleport(page, -14, 2, -0.4)
     await sleep(1200)
     await shot("31-night-shore")
+  },
+  /** Each water, from its harbour square looking inland (and Frost from its ice). */
+  async zones(page, shot) {
+    await page.goto(BASE + "?save=late&at=pier&phase=day&weather=clear")
+    await until(page, () => window.__harness?.store?.me && window.__harness.world?.zones.size > 0)
+    const spots = [["50-willow", 420, 0, 52, 0], ["51-coral", 840, 0, 52, 0], ["52-frost", 0, 420, 20, 0], ["53-ember", 420, 420, 52, 0], ["54-moon", 840, 420, 40, 0], ["55-willow-mill", 420, 0, -2, 1.4]]
+    for (const [name, cx, cz, dz, yaw] of spots) {
+      await teleport(page, cx + (name.endsWith("mill") ? 26 : 0), cz + dz, yaw)
+      await until(page, (k) => window.__harness.world.zones.has(k), [0, 420, 840].indexOf(cx) + (cz ? 3 : 0), 30000)
+      await sleep(1500)
+      await shot(name)
+    }
+  },
+  async home(page, shot) {
+    await page.goto(BASE + "?save=late&at=pier&phase=dusk")
+    await until(page, () => window.__harness?.store?.me && window.__harness.world?.zones.size > 0)
+    const plot = await page.evaluate(() => {
+      const me = window.__harness.store.me
+      return window.__harness.world.zones.get(0).data.anchors.plots[me.plot]
+    })
+    await page.evaluate(() => {
+      const s = window.__harness.store
+      s.tourney = { ...(s.tourney ?? {}), crown: s.userId }
+    })
+    const side = plot[0] < -34 || (plot[0] > 0 && plot[0] < 34) ? -1 : 1
+    await teleport(page, plot[0] - side * 4.2, plot[2] - 3.5, side > 0 ? -2.2 : 2.2)
+    await sleep(4000)
+    await shot("60-home-aquarium")
   },
   async ride(page, shot) {
     await page.goto(BASE + "?save=mid&at=captain&phase=day")

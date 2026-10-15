@@ -60,7 +60,12 @@ Graphics Auto / High / Low.
 
 ## Status
 
-- M1 (core loop in Lantern Lake + first minute): done and played end to end in tests + harness.
-  Other waters are not built yet (travel to them does nothing until M2 adds their zone files).
-- Next: M2 — Willow River, Coral Bay, Frost Lake, Ember Lagoon, Moon Pond (+ anchors: arrive,
-  captain, market, tackle per zone), fish icon atlas for Index/bag, weather visuals.
+- M1 core loop + first minute: done (tests + harness, all three screen shapes).
+- Performance budget: done (see above).
+- All six waters are built (pipeline/blender/zone_<key>.py; shared harbour/town/ice/lava helpers in
+  zonelib.py). Travel between them works (test: sailing to Willow River and selling there).
+- Blogem shop tab (src/paidClient.ts + example src/paid.ts), rewarded videos only where useful: Lucky
+  Bait (bait tab), Double Sale (bag at a market, bag worth 50+), Re-hook (10 s after a Rare+ escape).
+- Home aquariums with the owner's fish and name board, champion crown (src/world/homes.ts).
+- Not done yet (next): illustrated fish icons for Index/bag, rain/snow/aurora visuals, more polish of
+  the new islands (they are lighter than Lantern Lake), the tournament stage show.

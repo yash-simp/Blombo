@@ -60,6 +60,7 @@ class Zone:
         self.ice = None          # polygon frozen at GROUND (Frost)
         self.lava = []           # polylines of glowing lava
         self.sand_band = 3.5
+        self.beach = None        # polygon of walkable ground painted as beach sand (Coral)
 
     # ── height ──
     def height_grid(self, xs, zs):
@@ -196,6 +197,8 @@ class Zone:
                 c = hexrgb(pal["snow"])
         else:
             c = grass
+        if self.beach is not None and abs(h - GROUND) < 0.35 and self.beach.contains(Point(x, z)):
+            c = mix(hexrgb(pal["sand"]), grass, 0.12 * (0.5 + 0.5 * math.sin(x * 0.3 + z * 0.2)))
         if plaza_geom is not None and abs(h - GROUND) < 0.2 and plaza_geom.contains(Point(x, z)):
             c = hexrgb(pal["plaza"])
         return jitter(c, rng, 0.025, 0.006)

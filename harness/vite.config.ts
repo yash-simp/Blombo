@@ -15,6 +15,7 @@ function platform(): Plugin {
       if (source === "../tools/ui.css") return path.join(here, "platform/ui.css")
       if (source === "./fonts.css" && importer.startsWith(path.join(game, "src"))) return path.join(here, "platform/empty.css")
       if (source === "./paid.ts" && importer.startsWith(path.join(game, "server"))) return path.join(here, "mock/paid.ts")
+      if (source === "./paid" && importer.startsWith(path.join(game, "src"))) return path.join(here, "mock/paidClientHalf.ts")
       return null
     },
     transform(code, id) {

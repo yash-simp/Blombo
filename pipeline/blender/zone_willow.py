@@ -103,7 +103,7 @@ def build():
     shore = walk.buffer(4).difference(walk.buffer(0.3))
     z.scatter(["reeds", "cattails", "cattails"], shore, 170, 1.7, 238, hmin=-0.4, hmax=0.75, scale=(0.9, 1.4))
     z.scatter(["rock_s", "rock_m"], shore, 34, 4.0, 239, hmin=-0.6, hmax=0.9, scale=(0.7, 1.2))
-    z.scatter("lilypad", river.buffer(-2.5).union(pond.buffer(-2)), 70, 2.4, 240, yrule="water", scale=(0.8, 1.4))
+    z.scatter("lilypad", river.buffer(-2.5).intersection(base.buffer(-6)).union(pond.buffer(-2)), 70, 2.4, 240, yrule="water", scale=(0.8, 1.4))
     z.scatter("buoy", Point(0, 92).buffer(40).difference(base.buffer(8)), 6, 14, 241, yrule="water")
     return z, river
 

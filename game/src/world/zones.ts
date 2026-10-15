@@ -106,7 +106,7 @@ export interface ZoneView {
   release: () => void
 }
 
-function makeLabel(text: string, sub: string, color: string): Sprite {
+export function makeLabel(text: string, sub: string, color: string): Sprite {
   const canvas = document.createElement("canvas")
   canvas.width = 512
   canvas.height = 160
