@@ -3,6 +3,7 @@
 import { computed, onBeforeUnmount, onMounted } from "vue"
 import { t } from "@/text"
 import Icon from "./Icon.vue"
+import FishIcon from "./FishIcon.vue"
 import type { CatchView } from "../fishing/controller"
 import { SPECIES, sizeOf } from "../../server/rules.ts"
 import { RARITY_CSS, fishName, kg, num } from "./format"
@@ -27,7 +28,10 @@ onBeforeUnmount(() => window.clearTimeout(timer))
       <span v-if="c.sh" class="badge badge--shiny"><Icon name="sparkle" />{{ t("hud.shiny") }}</span>
       <span v-if="c.perfect" class="badge badge--perfect">{{ t("hud.perfect") }}</span>
     </div>
-    <h2 class="catch__name">{{ fishName(c.s) }}</h2>
+    <div class="catch__title">
+      <FishIcon :species="c.s" :shiny="c.sh" class="catch__fish" />
+      <h2 class="catch__name">{{ fishName(c.s) }}</h2>
+    </div>
     <div class="catch__stats">
       <span>{{ t("hud.weight", { kg: kg(c.g) }) }}</span>
       <span>{{ t("hud.size", { pct: size }) }}</span>
@@ -90,7 +94,37 @@ onBeforeUnmount(() => window.clearTimeout(timer))
   color: #0b3a1a;
   -webkit-text-stroke: 0;
 }
+.catch__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.catch__fish {
+  width: 150px;
+  height: 150px;
+  margin: -30px -6px -30px -18px;
+  animation: catch-swim 1.8s ease-in-out infinite;
+}
+@keyframes catch-swim {
+  0%,
+  100% {
+    rotate: -6deg;
+    translate: 0 4px;
+  }
+  50% {
+    rotate: 5deg;
+    translate: 0 -6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catch__fish {
+    animation: none;
+  }
+}
 .catch__name {
+  min-width: 0;
   margin: 0;
   font-size: 66px;
   line-height: 1.05;

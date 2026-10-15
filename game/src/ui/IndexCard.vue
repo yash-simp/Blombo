@@ -3,6 +3,7 @@
 import { computed, ref } from "vue"
 import { t } from "@/text"
 import Icon from "./Icon.vue"
+import FishIcon from "./FishIcon.vue"
 import { store } from "../net"
 import { INDEX_TIERS, SPECIES, SPECIES_PER_ZONE, ZONES } from "../../server/rules.ts"
 import { RARITY_CSS, kg } from "./format"
@@ -48,7 +49,7 @@ function when(i: number): string {
         :style="{ '--rc': RARITY_CSS[x.s.rarity] }"
       >
         <span class="tile__rarity">{{ t("rarity." + x.s.rarity) }}</span>
-        <Icon name="fish" class="tile__fish" />
+        <FishIcon :species="x.i" :unknown="!(store.dex?.c[x.i] ?? 0)" :shiny="(store.dex?.sh[x.i] ?? 0) > 0" class="tile__fish" />
         <strong>{{ (store.dex?.c[x.i] ?? 0) ? t("fish." + x.s.id) : t("hud.unknown") }}</strong>
         <small>{{ when(x.i) }}</small>
         <small v-if="store.dex?.c[x.i]">{{ t("hud.caught_n", { n: store.dex.c[x.i]! }) }} · {{ t("hud.best", { kg: kg(store.dex.b[x.i]!) }) }}</small>
@@ -128,11 +129,9 @@ function when(i: number): string {
   color: var(--rc);
 }
 .tile__fish {
-  width: 110px !important;
-  height: 110px !important;
-}
-.tile.unknown .tile__fish {
-  filter: brightness(0) opacity(0.5);
+  width: 168px;
+  height: 168px;
+  margin: -26px 0 -30px;
 }
 .tile__shiny {
   position: absolute;

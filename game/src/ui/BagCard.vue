@@ -4,6 +4,7 @@ import { computed, ref } from "vue"
 import type { IGame } from "@blombo/game-runtime"
 import { t } from "@/text"
 import Icon from "./Icon.vue"
+import FishIcon from "./FishIcon.vue"
 import { store } from "../net"
 import { SPECIES, fishValue } from "../../server/rules.ts"
 import { RARITY_CSS, fishName, kg, num } from "./format"
@@ -61,7 +62,7 @@ function fromAquarium(uid: number): void {
       <template v-if="tab === 'bag'">
         <p v-if="!fish.length" class="bag__empty">{{ t("bag.empty") }}</p>
         <article v-for="f in fish" :key="f[0]" class="row" :style="{ '--rc': RARITY_CSS[SPECIES[f[1]!]?.rarity ?? 0] }">
-          <span class="row__dot"></span>
+          <FishIcon :species="f[1]!" :shiny="(f[3]! & 1) !== 0" class="row__fish" />
           <div class="row__main">
             <strong>{{ fishName(f[1]!) }}<Icon v-if="(f[3]! & 1) !== 0" name="sparkle" class="row__shiny" /></strong>
             <small>{{ t("rarity." + (SPECIES[f[1]!]?.rarity ?? 0)) }} · {{ t("hud.weight", { kg: kg(f[2]!) }) }}</small>
@@ -76,7 +77,7 @@ function fromAquarium(uid: number): void {
       </template>
       <template v-else>
         <article v-for="f in myHome?.f ?? []" :key="f[0]" class="row" :style="{ '--rc': RARITY_CSS[SPECIES[f[1]!]?.rarity ?? 0] }">
-          <span class="row__dot"></span>
+          <FishIcon :species="f[1]!" :shiny="((f[3] ?? 0) & 1) !== 0" class="row__fish" />
           <div class="row__main">
             <strong>{{ fishName(f[1]!) }}</strong>
             <small>{{ t("hud.weight", { kg: kg(f[2]!) }) }}</small>
@@ -100,6 +101,11 @@ function fromAquarium(uid: number): void {
 <style scoped>
 .bag {
   width: 900px;
+}
+.row__fish {
+  width: 116px;
+  height: 116px;
+  margin: -18px -4px -18px -6px;
 }
 .bag__count {
   margin-left: auto;
