@@ -1,0 +1,9 @@
+node_modules/
+/node_modules
+harness/shots/
+pipeline/renders/
+pipeline/out/*
+!pipeline/out/up/
+pipeline/__pycache__/
+pipeline/blender/__pycache__/
+*.pyc

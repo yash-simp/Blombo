@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "toServer": {
+    "Cast": "{ x: number; z: number; p: number }",
+    "Hook": "number",
+    "Reel": "{ id: number; ok: boolean; perfect: boolean }",
+    "CancelCast": "number",
+    "Talk": "string",
+    "Sell": "{ all: boolean; ids: number[] }",
+    "Buy": "{ kind: 'rod' | 'reel' | 'bait' | 'bag' | 'zone' | 'boat'; id: number }",
+    "Equip": "{ kind: 'rod' | 'bait' | 'skin' | 'title' | 'boat'; id: string }",
+    "Travel": "number",
+    "Claim": "{ kind: 'gift' | 'quest' | 'daily' | 'index' | 'login'; id: number }",
+    "Aquarium": "{ add: number; remove: number }",
+    "Lock": "number",
+    "Setting": "{ auto: boolean }",
+    "PaidRefresh": "number",
+    "PaidUse": "string"
+  },
+  "toClient": {
+    "CastOk": "{ id: number; bite: number; d: number; r: number; first: boolean; none: boolean; win: number }",
+    "CastNo": "string",
+    "Hooked": "{ id: number; d: number; r: number }",
+    "Caught": "{ s: number; g: number; sh: boolean; perfect: boolean; coins: number; xp: number; isNew: boolean; first: boolean; uid: number }",
+    "Escaped": "{ id: number; r: number; rehook: boolean }",
+    "Reward": "{ k: string; coins: number; bait: string; baitN: number; xp: number; title: string; skin: string; n: number }",
+    "Toast": "{ k: string; n: number }",
+    "Fx": "{ u: string; k: 'cast' | 'bite' | 'reel' | 'catch' | 'escape' | 'idle'; x: number; z: number; s: number; r: number; sh: boolean; g: number }",
+    "Ride": "{ from: number; to: number; ms: number; boat: number }",
+    "PaidUsed": "{ id: string; result: string }"
+  },
+  "state": {
+    "Me": "{ coins: number; xp: number; rod: number; rods: number; reel: number; bag: number; zones: number; boats: number; boat: number; bait: { id: string; n: number }[]; baitEq: string[]; skin: string; skins: string[]; title: string; titles: string[]; tut: number; auto: boolean; plot: number; zone: number; sold: number; catches: number; perfect: number; streak: number; loginReady: boolean; giftReady: boolean; rehook: number }",
+    "Bag": "{ cap: number; fish: number[][] }",
+    "Dex": "{ c: number[]; b: number[]; sh: number[]; ir: number[] }",
+    "Quests": "{ q: number; qp: number; qn: number; qdone: boolean; day: number; d: { id: string; p: number; n: number; done: boolean; claimed: boolean }[]; ach: string[] }",
+    "Clock": "number",
+    "Tourney": "{ round: number; live: boolean; startsAt: number; endsAt: number; board: { n: string; u: string; s: number; sp: number; g: number }[]; crown: string }",
+    "Homes": "{ p: number; u: string; n: string; t: string; f: number[][] }[]",
+    "Paid": "{ items: { id: string; units: number }[]; mode: 'live' | 'test' | 'offline'; ask: number }"
+  }
+}

@@ -1,0 +1,1216 @@
+{
+ "tree_round_a": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.35,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 668
+ },
+ "tree_round_b": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.35,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 668
+ },
+ "tree_round_c": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.35,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 668
+ },
+ "tree_pine_a": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.3,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 396
+ },
+ "tree_pine_b": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.3,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 396
+ },
+ "tree_snowpine_a": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.3,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 396
+ },
+ "tree_snowpine_b": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.3,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 396
+ },
+ "tree_willow": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.45,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 808
+ },
+ "tree_palm": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.3,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 624
+ },
+ "tree_ember": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.35,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 720
+ },
+ "tree_mushroom": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.6,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 648
+ },
+ "bush_a": {
+  "collider": null,
+  "anchors": {},
+  "tris": 400
+ },
+ "bush_b": {
+  "collider": null,
+  "anchors": {},
+  "tris": 600
+ },
+ "bush_c": {
+  "collider": null,
+  "anchors": {},
+  "tris": 600
+ },
+ "bush_snow": {
+  "collider": null,
+  "anchors": {},
+  "tris": 400
+ },
+ "bush_ember": {
+  "collider": null,
+  "anchors": {},
+  "tris": 600
+ },
+ "bush_moon": {
+  "collider": null,
+  "anchors": {},
+  "tris": 600
+ },
+ "rock_s": {
+  "collider": null,
+  "anchors": {},
+  "tris": 20
+ },
+ "rock_m": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.8,
+    1.2
+   ]
+  ],
+  "anchors": {},
+  "tris": 240
+ },
+ "rock_l": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    1.7,
+    2.4
+   ]
+  ],
+  "anchors": {},
+  "tris": 320
+ },
+ "rock_sand": {
+  "collider": null,
+  "anchors": {},
+  "tris": 160
+ },
+ "rock_ice": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.9,
+    1.2
+   ]
+  ],
+  "anchors": {},
+  "tris": 240
+ },
+ "rock_basalt": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    1.0,
+    1.2
+   ]
+  ],
+  "anchors": {},
+  "tris": 288
+ },
+ "rock_moon": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.9,
+    1.2
+   ]
+  ],
+  "anchors": {},
+  "tris": 240
+ },
+ "reeds": {
+  "collider": null,
+  "anchors": {},
+  "tris": 184
+ },
+ "lilypad": {
+  "collider": null,
+  "anchors": {},
+  "tris": 176
+ },
+ "flowers_pink": {
+  "collider": null,
+  "anchors": {},
+  "tris": 306
+ },
+ "flowers_yellow": {
+  "collider": null,
+  "anchors": {},
+  "tris": 306
+ },
+ "flowers_blue": {
+  "collider": null,
+  "anchors": {},
+  "tris": 306
+ },
+ "flowers_glow": {
+  "collider": null,
+  "anchors": {},
+  "tris": 306
+ },
+ "grass": {
+  "collider": null,
+  "anchors": {},
+  "tris": 54
+ },
+ "grass_dry": {
+  "collider": null,
+  "anchors": {},
+  "tris": 54
+ },
+ "log": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    2.2,
+    0.6,
+    0.6
+   ]
+  ],
+  "anchors": {},
+  "tris": 128
+ },
+ "stump": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.4,
+    0.6
+   ]
+  ],
+  "anchors": {},
+  "tris": 164
+ },
+ "mushrooms_red": {
+  "collider": null,
+  "anchors": {},
+  "tris": 784
+ },
+ "mushrooms_glow": {
+  "collider": null,
+  "anchors": {},
+  "tris": 464
+ },
+ "crystal_ice": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.4,
+    1.5
+   ]
+  ],
+  "anchors": {},
+  "tris": 140
+ },
+ "crystal_moon": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.4,
+    1.5
+   ]
+  ],
+  "anchors": {},
+  "tris": 140
+ },
+ "crystal_ember": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.4,
+    1.5
+   ]
+  ],
+  "anchors": {},
+  "tris": 140
+ },
+ "coral_branch": {
+  "collider": null,
+  "anchors": {},
+  "tris": 400
+ },
+ "coral_fan": {
+  "collider": null,
+  "anchors": {},
+  "tris": 36
+ },
+ "coral_brain": {
+  "collider": null,
+  "anchors": {},
+  "tris": 100
+ },
+ "shells": {
+  "collider": null,
+  "anchors": {},
+  "tris": 204
+ },
+ "seaweed": {
+  "collider": null,
+  "anchors": {},
+  "tris": 36
+ },
+ "cattails": {
+  "collider": null,
+  "anchors": {},
+  "tris": 406
+ },
+ "lantern_post": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.2,
+    2.6
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0.52,
+    1.92,
+    0
+   ]
+  },
+  "tris": 312
+ },
+ "lantern_ground": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    0,
+    0.32,
+    0
+   ]
+  },
+  "tris": 180
+ },
+ "lantern_string": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    -1.98,
+    2.2096,
+    0
+   ],
+   "light1": [
+    -0.96,
+    2.0263,
+    0
+   ],
+   "light2": [
+    0.0,
+    1.97,
+    0
+   ],
+   "light3": [
+    0.96,
+    2.0263,
+    0
+   ],
+   "light4": [
+    1.98,
+    2.2096,
+    0
+   ]
+  },
+  "tris": 1484
+ },
+ "torch_tiki": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.15,
+    2
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0,
+    2.05,
+    0
+   ]
+  },
+  "tris": 182
+ },
+ "stone_lantern": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.35,
+    1.6
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0,
+    1.15,
+    0
+   ]
+  },
+  "tris": 264
+ },
+ "dock_4": {
+  "collider": null,
+  "anchors": {},
+  "tris": 1008
+ },
+ "dock_end": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    1.85,
+    2.13,
+    -1.45
+   ]
+  },
+  "tris": 1196
+ },
+ "pier_post": {
+  "collider": null,
+  "anchors": {},
+  "tris": 172
+ },
+ "buoy": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    0,
+    0.67,
+    0
+   ]
+  },
+  "tris": 120
+ },
+ "fence_3": {
+  "collider": null,
+  "anchors": {},
+  "tris": 192
+ },
+ "bench": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    1.6,
+    0.8,
+    0.6
+   ]
+  ],
+  "anchors": {},
+  "tris": 160
+ },
+ "crate": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    0.8,
+    0.8,
+    0.8
+   ]
+  ],
+  "anchors": {},
+  "tris": 164
+ },
+ "crate_fish": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    0.8,
+    0.6,
+    0.8
+   ]
+  ],
+  "anchors": {},
+  "tris": 248
+ },
+ "barrel": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.4,
+    1
+   ]
+  ],
+  "anchors": {},
+  "tris": 210
+ },
+ "bucket_worms": {
+  "collider": null,
+  "anchors": {},
+  "tris": 202
+ },
+ "net_rack": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    2.2,
+    2,
+    0.4
+   ]
+  ],
+  "anchors": {},
+  "tris": 402
+ },
+ "rod_rack": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    1.6,
+    2,
+    0.5
+   ]
+  ],
+  "anchors": {},
+  "tris": 446
+ },
+ "signpost": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.15,
+    2
+   ]
+  ],
+  "anchors": {},
+  "tris": 92
+ },
+ "well": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.9,
+    2
+   ]
+  ],
+  "anchors": {},
+  "tris": 1126
+ },
+ "campfire": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    0,
+    0.4,
+    0
+   ]
+  },
+  "tris": 242
+ },
+ "haybale": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.6,
+    1
+   ]
+  ],
+  "anchors": {},
+  "tris": 136
+ },
+ "umbrella": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.12,
+    2.4
+   ]
+  ],
+  "anchors": {},
+  "tris": 36
+ },
+ "surfboard": {
+  "collider": null,
+  "anchors": {},
+  "tris": 92
+ },
+ "sandcastle": {
+  "collider": null,
+  "anchors": {},
+  "tris": 414
+ },
+ "snowman": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    0.5,
+    1.6
+   ]
+  ],
+  "anchors": {},
+  "tris": 570
+ },
+ "cottage_a": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    5.4,
+    6,
+    4.4
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    -0.15,
+    2.21,
+    3.1
+   ]
+  },
+  "tris": 3984
+ },
+ "cottage_b": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    4.2,
+    6,
+    4.2
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0.75,
+    2.21,
+    3.0
+   ]
+  },
+  "tris": 3476
+ },
+ "cottage_c": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    5.4,
+    6,
+    4.4
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    -0.15,
+    2.21,
+    3.1
+   ]
+  },
+  "tris": 3984
+ },
+ "market_stall": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    -0.3,
+    3.2,
+    3,
+    1.4
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0.6,
+    2.12,
+    0.75
+   ],
+   "npc": [
+    0,
+    0,
+    -1.4
+   ]
+  },
+  "tris": 1292
+ },
+ "tackle_shack": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    3.8,
+    4,
+    3.2
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    -1.45,
+    2.36,
+    1.75
+   ],
+   "npc": [
+    0.6,
+    0,
+    2.8
+   ]
+  },
+  "tris": 1508
+ },
+ "captain_booth": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    2.4,
+    3,
+    2.0
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    -1.0,
+    2.07,
+    0.8
+   ],
+   "npc": [
+    0,
+    0,
+    1.9
+   ]
+  },
+  "tris": 806
+ },
+ "tourney_stage": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    7,
+    0.6,
+    4.2
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    -2.7,
+    3.87,
+    -1.7
+   ],
+   "light1": [
+    -1.8,
+    3.87,
+    -1.7
+   ],
+   "light2": [
+    -0.9,
+    3.87,
+    -1.7
+   ],
+   "light3": [
+    0.0,
+    3.87,
+    -1.7
+   ],
+   "light4": [
+    0.9,
+    3.87,
+    -1.7
+   ],
+   "light5": [
+    1.8,
+    3.87,
+    -1.7
+   ],
+   "light6": [
+    2.7,
+    3.87,
+    -1.7
+   ],
+   "first": [
+    0,
+    1.62,
+    -0.6
+   ],
+   "second": [
+    -1.4,
+    1.32,
+    -0.6
+   ],
+   "third": [
+    1.4,
+    1.12,
+    -0.6
+   ]
+  },
+  "tris": 2608
+ },
+ "notice_board": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    2.6,
+    2.6,
+    0.4
+   ]
+  ],
+  "anchors": {},
+  "tris": 236
+ },
+ "aquarium": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    1.8,
+    1.9,
+    0.9
+   ]
+  ],
+  "anchors": {
+   "tank": [
+    0,
+    1.38,
+    0
+   ]
+  },
+  "tris": 454
+ },
+ "home_plot": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    1.0,
+    3.44,
+    -2.45
+   ],
+   "board": [
+    0,
+    2.95,
+    -2.38
+   ],
+   "tank": [
+    0,
+    1.0,
+    0.9
+   ],
+   "stand": [
+    0,
+    1.0,
+    -1.0
+   ]
+  },
+  "tris": 944
+ },
+ "boardwalk_4": {
+  "collider": null,
+  "anchors": {},
+  "tris": 352
+ },
+ "mill_house": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    5.4,
+    7,
+    4.6
+   ]
+  ],
+  "anchors": {
+   "wheel": [
+    3.25,
+    2.2,
+    0
+   ]
+  },
+  "tris": 3760
+ },
+ "mill_wheel": {
+  "collider": null,
+  "anchors": {},
+  "tris": 1468
+ },
+ "stone_bridge": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    -3.8,
+    2.14,
+    -1.15
+   ],
+   "light1": [
+    -3.8,
+    2.14,
+    1.15
+   ],
+   "light2": [
+    3.8,
+    2.14,
+    -1.15
+   ],
+   "light3": [
+    3.8,
+    2.14,
+    1.15
+   ]
+  },
+  "tris": 2416
+ },
+ "beach_hut": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    4.4,
+    5,
+    4.4
+   ]
+  ],
+  "anchors": {},
+  "tris": 1372
+ },
+ "lifeguard_tower": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    2.4,
+    4,
+    2.4
+   ]
+  ],
+  "anchors": {},
+  "tris": 416
+ },
+ "igloo": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    2.0,
+    2.2
+   ]
+  ],
+  "anchors": {},
+  "tris": 3008
+ },
+ "ice_hut": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    3.0,
+    3.6,
+    2.8
+   ]
+  ],
+  "anchors": {},
+  "tris": 1064
+ },
+ "forge_hut": {
+  "collider": [
+   [
+    "box",
+    0,
+    0,
+    0,
+    4.2,
+    4,
+    3.6
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0.8,
+    1.2,
+    2.1
+   ]
+  },
+  "tris": 2804
+ },
+ "moon_shrine": {
+  "collider": [
+   [
+    "box",
+    -2.0,
+    0,
+    0,
+    0.6,
+    4,
+    0.6
+   ],
+   [
+    "box",
+    2.0,
+    0,
+    0,
+    0.6,
+    4,
+    0.6
+   ]
+  ],
+  "anchors": {
+   "light0": [
+    0,
+    2.6,
+    0
+   ]
+  },
+  "tris": 816
+ },
+ "basalt_columns": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    1.2,
+    3
+   ]
+  ],
+  "anchors": {},
+  "tris": 396
+ },
+ "steam_vent": {
+  "collider": null,
+  "anchors": {
+   "steam": [
+    0,
+    0.1,
+    0
+   ]
+  },
+  "tris": 176
+ },
+ "gift_box": {
+  "collider": null,
+  "anchors": {},
+  "tris": 216
+ },
+ "bridge_wood": {
+  "collider": null,
+  "anchors": {
+   "light0": [
+    3.8,
+    2.12,
+    1.4
+   ],
+   "light1": [
+    -3.8,
+    2.12,
+    -1.4
+   ]
+  },
+  "tris": 1352
+ },
+ "plaza_disc": {
+  "collider": null,
+  "anchors": {},
+  "tris": 1552
+ },
+ "fountain": {
+  "collider": [
+   [
+    "cyl",
+    0,
+    0,
+    2.9,
+    1.2
+   ]
+  ],
+  "anchors": {
+   "splash": [
+    0,
+    1.35,
+    0
+   ]
+  },
+  "tris": 2222
+ }
+}

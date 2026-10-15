@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "products": [
+    {
+      "id": "sell_x2",
+      "name": "Double Sell Price",
+      "description": "Every fish you sell at the market pays twice the coins, forever, in Lantern Lake.",
+      "kind": "permanent",
+      "priceBlogems": 199,
+      "quantity": 1
+    },
+    {
+      "id": "bait_belt",
+      "name": "Bait Belt",
+      "description": "Equip up to 3 baits at once instead of 1. Their effects stack on every cast.",
+      "kind": "permanent",
+      "priceBlogems": 99,
+      "quantity": 1
+    },
+    {
+      "id": "vip_boat",
+      "name": "Starlight Yacht (VIP Boat)",
+      "description": "Your own glowing Starlight Yacht: the fastest boat rides between waters and +10% fishing luck.",
+      "kind": "permanent",
+      "priceBlogems": 299,
+      "quantity": 1
+    },
+    {
+      "id": "auto_reel",
+      "name": "Auto-Reel",
+      "description": "Adds an Auto-Reel switch: your reel plays the fight for you (auto-reeled catches never count as Perfect).",
+      "kind": "permanent",
+      "priceBlogems": 249,
+      "quantity": 1
+    },
+    {
+      "id": "skin_rainbow",
+      "name": "Rainbow Rod Skin",
+      "description": "A rainbow look for your fishing rod. Cosmetic only: your rod keeps its own stats.",
+      "kind": "permanent",
+      "priceBlogems": 79,
+      "quantity": 1
+    },
+    {
+      "id": "skin_dragon",
+      "name": "Dragon Rod Skin",
+      "description": "A dragon look for your fishing rod, with glowing eyes at the tip. Cosmetic only: your rod keeps its own stats.",
+      "kind": "permanent",
+      "priceBlogems": 149,
+      "quantity": 1
+    },
+    {
+      "id": "skin_candy",
+      "name": "Candy Cane Rod Skin",
+      "description": "A candy cane look for your fishing rod. Cosmetic only: your rod keeps its own stats.",
+      "kind": "permanent",
+      "priceBlogems": 79,
+      "quantity": 1
+    },
+    {
+      "id": "lucky_bait_3",
+      "name": "Lucky Bait x3",
+      "description": "3 Lucky Bait. Each one gives 3 minutes of extra luck: rarer fish bite more often and shiny fish are twice as likely.",
+      "kind": "consumable",
+      "priceBlogems": 25,
+      "quantity": 3
+    },
+    {
+      "id": "sale_boost_1",
+      "name": "Double Sale",
+      "description": "Sell your whole bag (except locked fish) at a market for double coins, once.",
+      "kind": "consumable",
+      "priceBlogems": 15,
+      "quantity": 1
+    },
+    {
+      "id": "rehook_1",
+      "name": "Re-hook",
+      "description": "Re-hook a Rare or better fish that just escaped (within 45 seconds) and fight it again, once.",
+      "kind": "consumable",
+      "priceBlogems": 15,
+      "quantity": 1
+    }
+  ],
+  "rewardedAds": [
+    { "id": "lucky_bait_ad", "productId": "lucky_bait_3", "dailyLimit": 6, "cooldownSeconds": 300 },
+    { "id": "sale_boost_ad", "productId": "sale_boost_1", "dailyLimit": 6, "cooldownSeconds": 300 },
+    { "id": "rehook_ad", "productId": "rehook_1", "dailyLimit": 5, "cooldownSeconds": 60 }
+  ]
+}

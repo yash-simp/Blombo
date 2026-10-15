@@ -1,0 +1,297 @@
+@import "./fonts.css";
+/* Platform-owned `.ui-group` defaults and anchors; rules below override them. */
+@import "../tools/ui.css";
+
+:root {
+  color-scheme: dark;
+  font-family: "Rubik", system-ui, sans-serif;
+  font-weight: 900;
+  font-synthesis: none;
+  color: #f8fbff;
+  background: #102637;
+}
+
+* {
+  box-sizing: border-box;
+  /* Resolve em per element so the black outline follows its font size and the shared UI scale. */
+  -webkit-text-stroke: 0.12em #000;
+  paint-order: stroke fill;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: inherit;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* The runtime sizes its drawing buffer from this element's layout box: it fills the viewport. */
+.game-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* The on-screen joystick and jump button mount here; the layer itself lets touches through. */
+.touch-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Author UI lives here, never around the canvas or runtime touch layer. Empty space passes input. */
+.ui-layer {
+  position: absolute;
+  inset: 0;
+  /* Above runtime hit zones; the sibling touch layer contains their internal stacking order. */
+  z-index: 2;
+  pointer-events: none;
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  filter: grayscale(0.7) brightness(0.8);
+}
+button:focus-visible {
+  outline: 4px solid #fff;
+  outline-offset: 4px;
+}
+
+/* ───────────── cards (modal moments) ───────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: min(1000px, calc(var(--ui-height) - 64px));
+  padding: 26px 30px 28px;
+  border: 6px solid #0b1a2a;
+  border-radius: 34px;
+  background: linear-gradient(180deg, #1f4a6e 0%, #12304a 100%);
+  box-shadow: 0 14px 0 #0b1a2a, 0 30px 80px rgb(0 0 0 / 35%);
+  pointer-events: auto;
+  animation: cardIn 0.28s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.card h1 {
+  margin: 0;
+  font-size: 64px;
+  letter-spacing: -0.01em;
+}
+.card__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+.card__icon {
+  width: 84px !important;
+  height: 84px !important;
+}
+.card__close {
+  flex: none;
+  width: 84px;
+  height: 84px;
+  margin-left: auto;
+  padding: 12px;
+  border: 5px solid #0b1a2a;
+  border-radius: 24px;
+  background: linear-gradient(#ff7a6a, #e0463a);
+  box-shadow: 0 6px 0 #0b1a2a;
+}
+.card__close .icon {
+  width: 100%;
+  height: 100%;
+}
+.card__count + .card__close,
+.bag__count + .card__close {
+  margin-left: 16px;
+}
+.card__content {
+  min-height: 0;
+  padding: 4px 4px 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.card__foot {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex: none;
+}
+.card p {
+  line-height: 1.25;
+}
+.tabs {
+  display: flex;
+  gap: 10px;
+  flex: none;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 8px 24px;
+  border: 5px solid #0b1a2a;
+  border-radius: 999px;
+  background: #2b5a80;
+  color: #cfe6f8;
+  font-size: 48px;
+}
+.tabs button.on {
+  background: linear-gradient(#ffe27a, #ffb52e);
+  color: #3a2000;
+  -webkit-text-stroke: 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 4px solid #0b1a2a;
+  border-left: 14px solid var(--rc, #9fb4c8);
+  border-radius: 22px;
+  background: #1b3f5e;
+}
+.row__dot {
+  display: none;
+}
+.row__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.row__main strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 48px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row__main small {
+  font-size: 48px;
+  color: #b8d0e4;
+}
+.row__shiny {
+  width: 40px !important;
+  height: 40px !important;
+}
+.row__coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffe27a;
+  font-size: 48px;
+}
+.row__coins .icon {
+  width: 40px;
+  height: 40px;
+}
+.mini {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  padding: 10px;
+  border: 4px solid #0b1a2a;
+  border-radius: 20px;
+  background: #2b5a80;
+}
+.mini .icon {
+  width: 100%;
+  height: 100%;
+}
+.mini.on {
+  background: #ffcf3a;
+}
+.mini--sell {
+  background: #3a9a4a;
+}
+.pill {
+  flex: none;
+  padding: 8px 20px;
+  border: 4px solid #0b1a2a;
+  border-radius: 999px;
+  background: linear-gradient(#8affa0, #2fbf5a);
+  color: #fff;
+  font-size: 48px;
+  box-shadow: 0 5px 0 #0b1a2a;
+}
+.pill--gold {
+  background: linear-gradient(#ffe27a, #ffb52e);
+  color: #3a2000;
+  -webkit-text-stroke: 0;
+}
+.pill--blue {
+  background: linear-gradient(#9fd8ff, #3a8adf);
+}
+.pill .icon {
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  vertical-align: -6px;
+  margin-right: 6px;
+}
+.big {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 40px;
+  border: 6px solid #0b1a2a;
+  border-radius: 999px;
+  background: linear-gradient(#8affa0, #2fbf5a);
+  color: #fff;
+  font-size: 48px;
+  box-shadow: 0 8px 0 #0b1a2a;
+}
+.big .icon {
+  width: 56px;
+  height: 56px;
+}
+.big--gold {
+  background: linear-gradient(#ffe27a, #ffb52e);
+  color: #3a2000;
+  -webkit-text-stroke: 0;
+}
+/* Upright phones have room for taller, wider cards between the shell bar and the touch controls. */
+@media (orientation: portrait) {
+  .ui-group.card {
+    width: 1240px !important;
+    max-height: min(1640px, calc(var(--ui-height) - 820px));
+  }
+}
+@keyframes cardIn {
+  from {
+    scale: 0.85;
+    opacity: 0;
+  }
+}

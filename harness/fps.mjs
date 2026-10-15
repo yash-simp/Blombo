@@ -1,0 +1,11 @@
+import { chromium } from "playwright-core"
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: (process.env.FLAGS ?? "--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist").split(" ") })
+const page = await browser.newPage({ viewport: { width: 1600, height: 900 } })
+await page.goto("http://localhost:5199/?save=mid&at=pier&phase=day&weather=clear")
+await page.waitForFunction(() => window.__harness?.store?.me && window.__harness.world?.zones.size > 0, null, { timeout: 30000 })
+await new Promise((r) => setTimeout(r, 1500))
+const a = await page.evaluate(() => window.__harness.frames)
+await new Promise((r) => setTimeout(r, 4000))
+const b = await page.evaluate(() => window.__harness.frames)
+console.log("fps", (b - a) / 4, await page.evaluate(() => { const c = document.createElement("canvas"); const gl = c.getContext("webgl2"); const d = gl.getExtension("WEBGL_debug_renderer_info"); return gl.getParameter(d.UNMASKED_RENDERER_WEBGL) }))
+await browser.close()

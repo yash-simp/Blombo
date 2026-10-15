@@ -1,0 +1,213 @@
+// Harness stand-in for src/game.ts: a plain three WebGPU renderer (WebGL2 backend), a follow camera,
+// a blocky stand-in avatar holding the real rod model, and a fake IGame wired to the api shim, so the
+// real HUD, World and fishing controller run unchanged.
+import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Scene, SphereGeometry, BackSide, Vector3 } from "three"
+import { MeshBasicNodeMaterial, WebGPURenderer } from "three/webgpu"
+import { color, mix, positionLocal, smoothstep } from "three/tsl"
+import { World } from "../../game/src/world/zones"
+import { cloneRoot } from "../../game/src/assets/packs"
+import { t } from "../platform/text"
+import { toonMaterial } from "./runtime"
+import { client, held, hooks, player } from "./api"
+
+export interface Started {
+  game: any
+  world: World
+}
+
+const FORWARD = (yaw: number) => new Vector3(-Math.sin(yaw), 0, -Math.cos(yaw))
+
+function skyDome(): Mesh {
+  const geometry = new SphereGeometry(1500, 32, 16)
+  const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, fog: false })
+  const h = smoothstep(-0.05, 0.6, positionLocal.y.div(1500))
+  material.colorNode = mix(color(0xd8ecfb), color(0x5aa8e8), h)
+  return new Mesh(geometry, material)
+}
+
+function blockyAvatar(): { root: Group; hand: Group } {
+  const root = new Group()
+  const part = (w: number, h: number, d: number, c: number, x: number, y: number, z: number) => {
+    const mesh = new Mesh(new BoxGeometry(w, h, d), toonMaterial({ color: c }))
+    mesh.position.set(x, y, z)
+    root.add(mesh)
+    return mesh
+  }
+  part(0.9, 0.95, 0.5, 0x3a8adf, 0, 1.45, 0) // torso
+  part(0.62, 0.62, 0.62, 0xf2c89a, 0, 2.25, 0) // head
+  part(0.42, 0.9, 0.48, 0x2a3a5a, -0.23, 0.5, 0) // legs
+  part(0.42, 0.9, 0.48, 0x2a3a5a, 0.23, 0.5, 0)
+  part(0.3, 0.9, 0.36, 0xf2c89a, -0.62, 1.45, 0) // left arm
+  const hand = new Group()
+  hand.position.set(0.62, 1.85, 0)
+  const arm = new Mesh(new BoxGeometry(0.3, 0.9, 0.36), toonMaterial({ color: 0xf2c89a }))
+  arm.position.set(0, -0.4, 0)
+  hand.add(arm)
+  hand.rotation.x = 0.9
+  root.add(hand)
+  return { root, hand }
+}
+
+export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElement): Promise<Started> {
+  const renderer = new WebGPURenderer({ canvas, antialias: true, forceWebGL: true })
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio))
+  await renderer.init()
+  const scene = new Scene()
+  scene.background = new Color(0xbfe0f8)
+  scene.add(skyDome())
+  const camera = new PerspectiveCamera(60, 1, 0.1, 2000)
+  let cameraMode: "follow" | "manual" = "follow"
+  const frameHandlers = new Set<(e: { dt: number }) => void>()
+  const connectionHandlers = new Set<() => void>()
+  const position = new Vector3(player.x, player.y, player.z)
+  const avatar = blockyAvatar()
+  scene.add(avatar.root)
+  let rodKey = ""
+  let rod: Object3D | null = null
+  const hidden = new Set<string>()
+
+  hooks.teleport = (x, y, z, yaw) => {
+    position.set(x, y, z)
+    player.x = x
+    player.y = y
+    player.z = z
+    player.yaw = yaw
+  }
+
+  const game: any = {
+    canvas,
+    session: "online",
+    online: true,
+    paused: false,
+    localPlayer: { userId: player.userId },
+    players: [{ userId: player.userId, name: player.name, sessionId: player.sessionId }],
+    camera,
+    player: {
+      position,
+      get yaw() {
+        return player.yaw
+      },
+    },
+    t: (key: string, params?: Record<string, string | number>) => t(key, params),
+    on(name: string, cb: (...a: any[]) => void) {
+      if (name === "frame") {
+        frameHandlers.add(cb)
+        return () => frameHandlers.delete(cb)
+      }
+      if (name === "connection") {
+        connectionHandlers.add(cb)
+        return () => connectionHandlers.delete(cb)
+      }
+      if (name === "remote") return client.onEvent(cb)
+      return () => {}
+    },
+    remotes: { send: (name: string, payload: unknown) => client.send(name, payload), watch: client.watch },
+    local: {
+      add(object: Object3D, cleanup: () => void) {
+        scene.add(object)
+        return () => {
+          scene.remove(object)
+          cleanup()
+        }
+      },
+    },
+    avatars: {
+      local: {
+        hide: (reason: string) => hidden.add(reason),
+        show: (reason: string) => hidden.delete(reason),
+        itemSocketWorld(_hand: string, _socket: string, out: Vector3) {
+          if (!rod) return false
+          rod.updateWorldMatrix(true, false)
+          out.set(0, 0, -1.9).applyMatrix4(rod.matrixWorld)
+          return true
+        },
+        socketWorld: () => false,
+        attach: () => () => {},
+      },
+      get: () => null,
+      defineItem: () => {},
+      defineClip: () => {},
+    },
+    hands: { play: () => {}, stop: () => {}, mode: "auto" },
+    setCameraMode: (mode: "follow" | "manual") => void (cameraMode = mode),
+    setAimPitch: () => {},
+    configureTouchControls: () => {},
+    bindAction(o: { code: string; button?: HTMLButtonElement; onActivate?: () => void; onRelease?: () => void; onCancel?: () => void }) {
+      const down = (e: KeyboardEvent) => {
+        if (e.code === o.code && !e.repeat) o.onActivate?.()
+      }
+      const up = (e: KeyboardEvent) => {
+        if (e.code === o.code) o.onRelease?.()
+      }
+      const pdown = (e: PointerEvent) => {
+        e.preventDefault()
+        o.onActivate?.()
+      }
+      const pup = () => o.onRelease?.()
+      window.addEventListener("keydown", down)
+      window.addEventListener("keyup", up)
+      o.button?.addEventListener("pointerdown", pdown)
+      o.button?.addEventListener("pointerup", pup)
+      return () => {
+        window.removeEventListener("keydown", down)
+        window.removeEventListener("keyup", up)
+        o.button?.removeEventListener("pointerdown", pdown)
+        o.button?.removeEventListener("pointerup", pup)
+      }
+    },
+    commerce: {},
+    dispose: () => renderer.dispose(),
+  }
+
+  const world = new World(game)
+  let last = performance.now()
+  // Software rendering in a headless browser draws about one frame a second, so the game ticks on a
+  // 60 Hz timer and the scene is drawn only when a screenshot asks for it (window.__harness.render).
+  const tick = () => {
+    const now = performance.now()
+    const dt = Math.min(0.05, (now - last) / 1000)
+    last = now
+    // the stand-in avatar and its rod
+    avatar.root.visible = hidden.size === 0
+    avatar.root.position.copy(position)
+    avatar.root.rotation.y = player.yaw
+    const want = held.right ?? ""
+    if (want !== rodKey) {
+      rodKey = want
+      if (rod) avatar.root.remove(rod)
+      rod = want ? cloneRoot(want.startsWith("rod_skin_") ? want.slice(4) : want) : null
+      if (rod) {
+        rod.rotation.set(0.6, 0, 0)
+        rod.position.set(0.62, 1.35, -0.63)
+        avatar.root.add(rod)
+      }
+    }
+    for (const cb of [...frameHandlers]) cb({ dt })
+    if (cameraMode === "follow") {
+      const back = FORWARD(player.yaw).multiplyScalar(-7)
+      camera.position.set(position.x + back.x, position.y + 3.4, position.z + back.z)
+      camera.lookAt(position.x, position.y + 1.7, position.z)
+    }
+    const hs = (window as any).__harness
+    hs.frames = (hs.frames ?? 0) + 1
+  }
+  const render = () => {
+    const w = canvas.clientWidth
+    const h = canvas.clientHeight
+    if (w && h) {
+      renderer.setSize(w, h, false)
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+    }
+    renderer.render(scene, camera)
+  }
+  window.setInterval(tick, 16)
+  ;(window as any).__harness.render = render
+  await world.init()
+  await client.join()
+  render()
+  for (const cb of connectionHandlers) cb()
+  ;(window as any).__harness.game = game
+  ;(window as any).__harness.world = world
+  return { game, world }
+}

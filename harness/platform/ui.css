@@ -1,0 +1,40 @@
+/* Mirror of the workspace's platform-owned tools/ui.css (for local HUD screenshots only). */
+.ui-group {
+  position: absolute;
+  font-size: 48px;
+  line-height: 1.2;
+  transform: translate(var(--anchor-x, 0%), var(--anchor-y, 0%)) scale(var(--ui-scale));
+}
+.ui-group--center {
+  --anchor-x: -50%;
+  --anchor-y: -50%;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+}
+.ui-group--top {
+  --anchor-x: -50%;
+  left: 50%;
+  top: calc(var(--clear-top, 24px) * var(--shell-scale));
+  transform-origin: top center;
+}
+.ui-group--top-left {
+  top: calc(var(--clear-top-left, 120px) * var(--shell-scale));
+  left: calc(24px * var(--shell-scale));
+  transform-origin: top left;
+}
+.ui-group--top-right {
+  top: calc(var(--clear-top, 24px) * var(--shell-scale));
+  right: calc(24px * var(--shell-scale));
+  transform-origin: top right;
+}
+.ui-group--bottom {
+  --anchor-x: -50%;
+  left: 50%;
+  bottom: calc(var(--clear-bottom, 24px) * var(--shell-scale));
+  transform-origin: bottom center;
+}
+.ui-group :where(h1, h2, h3, h4, h5, h6) {
+  font-size: 60px;
+  line-height: 1.15;
+}

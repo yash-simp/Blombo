@@ -1,0 +1,6 @@
+@font-face {
+  font-family: "Rubik";
+  font-style: normal;
+  font-weight: 300 900;
+  src: url("/rubik-latin.woff2") format("woff2");
+}
