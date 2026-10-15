@@ -26,6 +26,9 @@ import { loadPackRoots } from "../assets/packs"
 import { Fx } from "../world/fx"
 import { packMaterials, vertexToon } from "../assets/materials"
 
+/** Seconds to wait for the server's answer to a Hook or Reel before giving up on that fish. */
+const LANDING_TIMEOUT_S = 6
+
 export type Phase = "idle" | "charging" | "flying" | "waiting" | "bite" | "reeling" | "landing"
 
 export interface FightView {
@@ -171,6 +174,12 @@ export class Fishing {
   private readonly offs: (() => void)[] = []
   private releaseLocal: () => void
   onCaught: (c: CatchView) => void = () => {}
+  /** A Cast is on its way to the server (no CastOk yet). */
+  private awaitingCast = false
+  /** The player cancelled before CastOk: cancel that cast when its id arrives. */
+  private cancelOnOk = false
+  /** When the hook or the final reel was sent; no answer within LANDING_TIMEOUT_S frees the controls. */
+  private landingSince = 0
 
   constructor(private readonly game: IGame) {
     const ringGeo = new RingGeometry(0.55, 0.75, 32)
@@ -193,7 +202,11 @@ export class Fishing {
     })
     this.offs.push(
       on("CastOk", (p) => this.onCastOk(p)),
-      on("CastNo", () => this.reset()),
+      on("CastNo", () => {
+        this.awaitingCast = false
+        this.cancelOnOk = false
+        this.reset()
+      }),
       on("Hooked", (p) => this.onHooked(p.id, p.d, p.r)),
       on("Caught", (p) => this.onCaught2(p)),
       on("Escaped", (p) => this.onEscaped(p.r, p.rehook)),
@@ -245,7 +258,8 @@ export class Fishing {
         return
       case "flying":
       case "waiting":
-        this.game.remotes.send("CancelCast", this.castId)
+        if (this.awaitingCast) this.cancelOnOk = true
+        else this.game.remotes.send("CancelCast", this.castId)
         this.reset()
         return
       case "bite":
@@ -302,7 +316,10 @@ export class Fishing {
       this.ring.visible = false
       return
     }
+    this.awaitingCast = true
+    this.cancelOnOk = false
     if (!this.game.remotes.send("Cast", { x: a.x, z: a.z, p: fishUi.power })) {
+      this.awaitingCast = false
       this.set("idle")
       return
     }
@@ -321,6 +338,12 @@ export class Fishing {
 
   // ───────────── server events ─────────────
   private onCastOk(p: { id: number; bite: number; d: number; r: number; first: boolean; none: boolean; win: number }): void {
+    this.awaitingCast = false
+    if (this.cancelOnOk) {
+      this.cancelOnOk = false
+      this.game.remotes.send("CancelCast", p.id)
+      return
+    }
     this.castId = p.id
     if (p.none) {
       fishUi.nothing = true
@@ -447,6 +470,13 @@ export class Fishing {
   update(dt: number): void {
     const eye = this.game.camera.position
     const now = performance.now()
+    if (fishUi.phase === "landing") {
+      this.landingSince += dt
+      if (this.landingSince > LANDING_TIMEOUT_S) {
+        this.game.remotes.send("CancelCast", this.castId)
+        this.reset()
+      }
+    } else this.landingSince = 0
     // charging: power ping-pong and the landing ring
     if (fishUi.phase === "charging") {
       this.chargeT += dt

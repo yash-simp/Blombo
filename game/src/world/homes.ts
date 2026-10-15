@@ -29,6 +29,7 @@ export class Homes {
   private crown: Object3D | null = null
   private detachCrown: (() => void) | null = null
   private crownTimer = 0
+  private crownAvatar: unknown = null
   private readonly release: () => void
 
   constructor(
@@ -71,7 +72,10 @@ export class Homes {
       if (old?.key === key) continue
       if (old) this.drop(home.p)
       if (home.f.length && !this.loaded) {
-        this.fishReady ??= loadPackRoots("models/fish.glb").then(() => void (this.loaded = true))
+        this.fishReady ??= loadPackRoots("models/fish.glb").then(
+          () => void (this.loaded = true),
+          () => void window.setTimeout(() => (this.fishReady = null), 15_000),
+        )
         continue
       }
       this.tanks.set(home.p, this.build(plot, home.n, home.t, home.f, key))
@@ -128,15 +132,17 @@ export class Homes {
   /** The tournament winner wears the crown until the next round ends. */
   private syncCrown(): void {
     const owner = store.tourney?.crown ?? ""
-    if (owner === this.crownOwner && (this.detachCrown || !owner)) return
+    const info = this.game.players.find((p) => p.userId === owner)
+    const avatar = !owner ? null : owner === store.userId ? this.game.avatars.local : info ? this.game.avatars.get(info.sessionId) : null
+    // the same champion on the same avatar keeps the crown; a rejoin (new avatar) gets it again
+    if (owner === this.crownOwner && avatar === this.crownAvatar && (this.detachCrown || !owner)) return
     this.detachCrown?.()
     this.detachCrown = null
     this.crownOwner = owner
     if (!owner) return
+    this.crownAvatar = avatar
     this.crown ??= cloneRoot("crown")
     if (!this.crown) return
-    const info = this.game.players.find((p) => p.userId === owner)
-    const avatar = owner === store.userId ? this.game.avatars.local : info ? this.game.avatars.get(info.sessionId) : null
     if (!avatar) return
     this.crown.position.set(0, 0.34, 0)
     this.crown.scale.setScalar(1.4)

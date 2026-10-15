@@ -161,8 +161,8 @@ export class World {
   private loading = new Set<number>()
   /** Zones kept loaded wherever the player is (the boat ride's destination). */
   readonly pinned = new Set<number>()
-  /** Zones whose files failed to load are not retried every frame. */
-  private failed = new Set<number>()
+  /** Zones whose files failed to load: retried after a pause (ms timestamp), not every frame. */
+  private failed = new Map<number, number>()
   private readonly q = new Quaternion()
   private readonly s = new Vector3()
   private readonly p = new Vector3()
@@ -189,7 +189,7 @@ export class World {
       const z = ZONES[i]!
       const d = Math.hypot(px - z.x, pz - z.z)
       const keep = this.pinned.has(i)
-      if ((d < 260 || keep) && !this.zones.has(i) && !this.loading.has(i) && !this.failed.has(i)) void this.load(i)
+      if ((d < 260 || keep) && !this.zones.has(i) && !this.loading.has(i) && (this.failed.get(i) ?? 0) < performance.now()) void this.load(i)
       if (d > 340 && !keep && this.zones.has(i)) {
         this.zones.get(i)!.release()
         this.zones.delete(i)
@@ -225,7 +225,7 @@ export class World {
       this.onZoneLoaded(index)
     } catch (error) {
       console.warn("zone load failed", index, error)
-      this.failed.add(index)
+      this.failed.set(index, performance.now() + 15_000)
     } finally {
       this.loading.delete(index)
     }

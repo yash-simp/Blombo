@@ -1,6 +1,6 @@
 // Home docks on the Harbor piers: each player in the room gets one with an aquarium of kept fish.
 import { anchorList } from "./world.ts"
-import { type Live, live, sendBag, sendMe, toast } from "./game.ts"
+import { type Live, checkGuide, live, sendBag, sendMe, sendQuests, toast } from "./game.ts"
 import { bagCap } from "./save.ts"
 import { SFX, playFor } from "./sounds.ts"
 
@@ -26,6 +26,12 @@ export function assignPlot(p: Live): void {
 
 export function releasePlot(userId: string): void {
   for (let i = 0; i < owners.length; i++) if (owners[i] === userId) owners[i] = ""
+  // a player who joined a full harbour gets the freed plot
+  for (const other of live.values()) {
+    if (other.userId === userId || other.plot >= 0 || !other.loaded) continue
+    assignPlot(other)
+    if (other.plot >= 0) sendMe(other)
+  }
 }
 
 export function sendHomes(): void {
@@ -43,6 +49,7 @@ export function sendHomes(): void {
 export function aquarium(p: Live, req: { add: number; remove: number }): void {
   const s = p.save
   if (req.add) {
+    if (p.plot < 0) return
     if (s.aq.length >= AQUARIUM_MAX) return toast(p, "toast.aquarium_full")
     const i = s.fish.findIndex((f) => f[0] === req.add)
     if (i < 0) return
@@ -61,4 +68,6 @@ export function aquarium(p: Live, req: { add: number; remove: number }): void {
   sendBag(p)
   sendMe(p)
   sendHomes()
+  checkGuide(p)
+  sendQuests(p)
 }

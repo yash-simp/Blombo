@@ -1,6 +1,6 @@
 // Coins in and out: selling at the market, buying gear, equipping, zones and boats, gifts, travel.
 import { BAG_COINS, BAITS, BOATS, REELS, RODS, ZONES, fishValue, levelOf, utcDay } from "./rules.ts"
-import { FLAG_LOCKED, FLAG_SHINY, addBait, bagCap } from "./save.ts"
+import { FLAG_LOCKED, FLAG_SHINY, addBait, bagCap, rollDaily } from "./save.ts"
 import {
   type Live,
   addCoins,
@@ -15,6 +15,8 @@ import {
   sendBag,
   sendMe,
   toast,
+  claimDaily,
+  sendQuests,
 } from "./game.ts"
 import { anchor } from "./world.ts"
 import { SFX, playFor } from "./sounds.ts"
@@ -256,6 +258,15 @@ export function talk(p: Live, player: { x: number; z: number }, npc: string): vo
 export function claim(p: Live, req: { kind: "gift" | "quest" | "daily" | "index" | "login"; id: number }): void {
   const s = p.save
   const today = utcDay(Date.now())
+  if (rollDaily(s, p.userId, Date.now())) {
+    p.dirty = true
+    sendQuests(p)
+  }
+  if (req.kind === "daily") {
+    const i = Math.floor(Number(req.id))
+    if (i >= 0 && i < 3) claimDaily(p, i)
+    return
+  }
   if (req.kind === "gift" && s.tut === 2) {
     s.tut = 3
     playFor(p.userId, SFX.gift)

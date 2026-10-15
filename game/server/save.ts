@@ -39,6 +39,8 @@ export interface Save {
   lday: number
   streak: number
   lclaim: number
+  /** ms timestamp until which paid Lucky Bait works */
+  luckyUntil: number
 }
 
 export const SAVE_VERSION = 1
@@ -88,6 +90,7 @@ export function newSave(): Save {
     lday: 0,
     streak: 0,
     lclaim: 0,
+    luckyUntil: 0,
   }
 }
 

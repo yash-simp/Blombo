@@ -415,5 +415,6 @@
  "stage.no_champion": "No champion yet",
  "stage.win_next": "Win the next cup!",
  "stage.last": "Last cup",
- "stage.started": "Tournament time!"
+ "stage.started": "Tournament time!",
+ "toast.too_fast": "Give the water a moment before casting again."
 }

@@ -325,3 +325,34 @@ test("sailing: a captain takes you to an unlocked water, and its market buys you
   assert.equal(ann.events("Ride").length, 1, "Coral Bay is still locked")
   room.close()
 })
+
+test("bug fixes: dailies pay out once, recasting is rate-limited, a cast never reveals its fish", async () => {
+  const room = await createScriptTest()
+  const ann = await joinReady(room, { name: "Ann" })
+  await room.run("server/game.ts", (m, id) => {
+    const p = m.live.get(id)
+    p.save.tut = 3
+    p.save.dp[0] = 999
+  }, ann.userId)
+  const coins0 = (ann.state("Me") as Me).coins
+  ann.send("Claim", { kind: "daily", id: 0 })
+  await room.tick(2)
+  const coins1 = (ann.state("Me") as Me).coins
+  assert.ok(coins1 > coins0, "a finished daily pays")
+  ann.send("Claim", { kind: "daily", id: 0 })
+  await room.tick(2)
+  assert.equal((ann.state("Me") as Me).coins, coins1, "and only once")
+
+  ann.moveTo(PIER.x, PIER.y, PIER.z)
+  await room.tick(1)
+  ann.send("Cast", { x: 0, z: -12, p: 1 })
+  await room.tick(2)
+  ann.send("Cast", { x: 0, z: -12, p: 1 })
+  await room.tick(2)
+  assert.equal(ann.events("CastOk").length, 1)
+  assert.deepEqual(ann.events("CastNo"), ["too_fast"])
+  const c = (ann.events("CastOk") as (CastOk & { r: number })[])[0]!
+  assert.equal(c.r, 0, "rarity stays secret until the hook")
+  assert.equal(c.d, 1)
+  room.close()
+})

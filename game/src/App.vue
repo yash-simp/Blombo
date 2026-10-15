@@ -56,6 +56,7 @@ let alive = true
 let feedId = 0
 const subscriptions: (() => void)[] = []
 let toastTimer = 0
+let rideTimer = 0
 let beacon: Beacon | null = null
 let talkTried = 0
 
@@ -97,7 +98,8 @@ const goal = computed<Goal | null>(() => {
   const me = store.me
   const w = world.value
   if (!me || !w) return null
-  const anchor = (name: string) => w.anchor(0, name)
+  const here = me.zone ?? 0
+  const anchor = (name: string) => w.anchor(here, name) ?? w.anchor(0, name)
   if (me.tut === 0) return { text: t("goal.talk_guide"), icon: "scroll", progress: "", target: anchor("guide"), action: null }
   if (me.tut === 1) {
     const fc = anchor("firstcast")
@@ -321,7 +323,8 @@ function wireEvents(g: IGame): (() => void)[] {
     on("Ride", (r) => {
       card.value = ""
       ride.value = { ...r, at: performance.now() }
-      window.setTimeout(() => (ride.value = null), r.ms + 300)
+      window.clearTimeout(rideTimer)
+      rideTimer = window.setTimeout(() => (ride.value = null), r.ms + 300)
     }),
   ]
 }
@@ -383,6 +386,7 @@ function talk(): void {
 }
 
 function openCard(name: typeof card.value, tab?: string): void {
+  if (name && ["bite", "reeling", "landing"].includes(fishUi.phase)) return
   if (tab) shopTab.value = tab
   card.value = card.value === name ? "" : name
 }

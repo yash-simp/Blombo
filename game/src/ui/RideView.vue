@@ -30,6 +30,8 @@ const WAKE_COUNT = 22
 const WAKE_EVERY = 0.09
 
 const wash = ref(0)
+/** Whether the destination was ready at the cut (decided once). */
+let arrivedAtCut: boolean | null = null
 const progress = ref(0)
 const dest = computed(() => zoneName(props.ride.to))
 
@@ -112,7 +114,8 @@ function frame(dt: number): void {
   const k = Math.min(1, Math.max(0, elapsed / props.ride.ms))
   progress.value = k
   wash.value = Math.max(0, 1 - Math.abs(k - LEAVE) / WASH)
-  const arrived = props.world.zones.has(props.ride.to)
+  if (k >= LEAVE && arrivedAtCut === null) arrivedAtCut = props.world.zones.has(props.ride.to)
+  const arrived = k < LEAVE ? props.world.zones.has(props.ride.to) || arrivedAtCut === null : arrivedAtCut === true
   if (k < LEAVE || !arrived) {
     // out of the home harbour, speeding up
     const h = harbour(props.ride.from)

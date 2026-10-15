@@ -39,6 +39,8 @@ export interface Fishing {
   hookAt: number
   first: boolean
   timer: number
+  /** Auto-Reel was on when the fish was hooked (such catches are never Perfect). */
+  auto: boolean
 }
 
 export interface Live {
@@ -50,12 +52,14 @@ export interface Live {
   fishing: Fishing
   /** ms timestamp until which the player rides a boat */
   riding: number
-  /** ms timestamp until which Lucky Bait is active */
-  lucky: number
+  /** The stored profile could not be read: play on, but never overwrite it. */
+  readOnly: boolean
   zone: number
   plot: number
   lastEscape: { species: number; grams: number; shiny: boolean; d: number; at: number; zone: number } | null
   castCount: number
+  /** When the last cast was accepted (casts are rate-limited). */
+  lastCastAt: number
 }
 
 export const live = new Map<string, Live>()
@@ -67,7 +71,7 @@ export const paidHooks = {
 }
 
 export function newFishing(): Fishing {
-  return { phase: "idle", id: 0, species: -1, grams: 0, shiny: false, d: 1, zone: 0, x: 0, z: 0, biteAt: 0, win: 0, hookAt: 0, first: false, timer: 0 }
+  return { phase: "idle", id: 0, species: -1, grams: 0, shiny: false, d: 1, zone: 0, x: 0, z: 0, biteAt: 0, win: 0, hookAt: 0, first: false, timer: 0, auto: false }
 }
 
 export async function loadPlayer(userId: string, name: string): Promise<Live> {
@@ -84,20 +88,26 @@ export async function loadPlayer(userId: string, name: string): Promise<Live> {
     dirty: false,
     fishing: newFishing(),
     riding: 0,
-    lucky: 0,
+    readOnly: false,
     zone: 0,
     plot: -1,
     lastEscape: null,
     castCount: 0,
+    lastCastAt: 0,
   }
   live.set(userId, p)
-  try {
-    const raw = await api.storage.get(storageKey(userId))
-    p.save = normalize(raw)
-  } catch (error) {
-    api.warn("profile load failed", String(error))
-    p.save = newSave()
+  let raw: unknown = null
+  let ok = false
+  for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+    try {
+      raw = await api.storage.get(storageKey(userId))
+      ok = true
+    } catch (error) {
+      api.warn("profile load failed", attempt, String(error))
+    }
   }
+  p.save = ok ? normalize(raw) : newSave()
+  p.readOnly = !ok
   p.loaded = true
   const now = Date.now()
   if (rollDaily(p.save, userId, now)) p.dirty = true
@@ -105,7 +115,7 @@ export async function loadPlayer(userId: string, name: string): Promise<Live> {
 }
 
 export function savePlayer(p: Live): void {
-  if (!p.loaded) return
+  if (!p.loaded || p.readOnly) return
   try {
     api.storage.set(storageKey(p.userId), p.save)
     p.dirty = false
@@ -132,7 +142,7 @@ export function luckOf(p: Live, night: boolean): { luck: number; shiny: number; 
     shiny *= b.shiny
     bite *= b.bite
   }
-  if (p.lucky > Date.now()) {
+  if (p.save.luckyUntil > Date.now()) {
     luck += 1
     shiny *= 2
   }
@@ -183,7 +193,7 @@ export function sendMe(p: Live): void {
     loginReady: s.tut >= 3 && s.lclaim < today,
     giftReady: s.tut === 2,
     rehook: p.lastEscape && Date.now() - p.lastEscape.at < 45_000 ? p.lastEscape.species : -1,
-    lucky: Math.max(0, Math.ceil((p.lucky - Date.now()) / 1000)),
+    lucky: Math.max(0, Math.ceil((p.save.luckyUntil - Date.now()) / 1000)),
   })
 }
 

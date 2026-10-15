@@ -32,6 +32,8 @@ import { SFX, playAt, playFor } from "./sounds.ts"
 import { onTourneyCatch, tourneyLive } from "./tourney.ts"
 
 let castIds = 1
+/** Casts closer together than this are refused (no rerolling a fish by recasting). */
+const CAST_COOLDOWN_MS = 1200
 
 function fx(p: Live, k: "cast" | "bite" | "reel" | "catch" | "escape" | "idle", x: number, z: number, s = -1, r = 0, sh = false, g = 0): void {
   api.remotes.sendAll("Fx", { u: p.userId, k, x, z, s, r, sh, g })
@@ -49,7 +51,11 @@ export function cast(p: Live, player: ScriptPlayer, req: { x: number; z: number;
   const now = Date.now()
   if (s.tut < 1) return toast(p, "toast.need_rod")
   if (p.riding > now) return
-  if (p.fishing.phase !== "idle") resetFishing(p, false)
+  if (now - p.lastCastAt < CAST_COOLDOWN_MS) {
+    api.remotes.send(p.userId, "CastNo", "too_fast")
+    return
+  }
+  if (p.fishing.phase !== "idle") resetFishing(p)
   if (s.fish.length >= bagCap(s)) {
     playFor(p.userId, SFX.error)
     api.remotes.send(p.userId, "CastNo", "bag_full")
@@ -92,6 +98,7 @@ export function cast(p: Live, player: ScriptPlayer, req: { x: number; z: number;
     ? { species: FIRST_CATCH_SPECIES, grams: Math.round(SPECIES[FIRST_CATCH_SPECIES]!.kg * 1350), shiny: false }
     : rollFish({ zone, sky, luck, shinyMult: shiny, rng: Math.random })
   const id = castIds++
+  p.lastCastAt = now
   const f = p.fishing
   f.id = id
   f.zone = zone
@@ -109,6 +116,7 @@ export function cast(p: Live, player: ScriptPlayer, req: { x: number; z: number;
   if (!rolled) {
     f.phase = "idle"
     api.remotes.send(p.userId, "CastOk", { id, bite: -1, d: 1, r: 0, first, none: true, win: 0 })
+    fx(p, "idle", x, z)
     sendMe(p)
     return
   }
@@ -122,12 +130,11 @@ export function cast(p: Live, player: ScriptPlayer, req: { x: number; z: number;
   f.d = d
   f.biteAt = now + delay
   f.win = first ? 6000 : 1400 + s.reel * 100
-  const rarity = SPECIES[rolled.species]!.rarity
-  api.remotes.send(p.userId, "CastOk", { id, bite: delay, d, r: rarity, first, none: false, win: f.win })
+  api.remotes.send(p.userId, "CastOk", { id, bite: delay, d: 1, r: 0, first, none: false, win: f.win })
   f.timer = api.setTimeout(() => {
     if (p.fishing.id !== id || p.fishing.phase !== "wait") return
     playAt(SFX.bite, x, 0.3, z, 90, 25)
-    fx(p, "bite", x, z, -1, rarity)
+    fx(p, "bite", x, z, -1, 0)
   }, delay)
   sendMe(p)
 }
@@ -149,6 +156,7 @@ export function hook(p: Live, id: number): void {
   }
   f.phase = "hooked"
   f.hookAt = now
+  f.auto = p.save.auto
   const rarity = SPECIES[f.species]!.rarity
   api.remotes.send(p.userId, "Hooked", { id, d: f.d, r: rarity })
   fx(p, "reel", f.x, f.z, -1, rarity)
@@ -176,8 +184,9 @@ export function reel(p: Live, req: { id: number; ok: boolean; perfect: boolean }
     api.warn("reel too fast", p.userId, elapsed)
     return escape(p, false)
   }
-  const auto = p.save.auto
-  grantCatch(p, f.species, f.grams, f.shiny, req.perfect && !auto, f.first, f.zone, f.x, f.z)
+  // Perfect means the fish never left the zone: impossible faster than the minimum fight, never on Auto-Reel
+  const perfect = req.perfect && !p.save.auto && !f.auto && elapsed >= minFightMs(f.d, power) * 0.97
+  grantCatch(p, f.species, f.grams, f.shiny, perfect, f.first, f.zone, f.x, f.z)
   resetFishing(p, false)
 }
 
@@ -194,6 +203,7 @@ export function rehook(p: Live): boolean {
   f.d = e.d
   f.zone = e.zone
   f.hookAt = Date.now()
+  f.auto = p.save.auto
   p.lastEscape = null
   api.remotes.send(p.userId, "Hooked", { id: f.id, d: f.d, r: SPECIES[f.species]!.rarity })
   sendMe(p)

@@ -76,7 +76,11 @@ export function use(productId: string): void {
 /** From a player's tap only: the video, then the reward is spent as soon as it arrives. */
 export function watchFor(placement: string, productId: string): void {
   spendWhenGranted.add(productId)
-  void api?.watchAd(placement).finally(() => void refreshAds())
+  void api?.watchAd(placement).finally(() => {
+    void refreshAds()
+    // a skipped or failed video must not spend a pack bought later
+    window.setTimeout(() => spendWhenGranted.delete(productId), 20_000)
+  })
 }
 
 export function product(productId: string): PaidProduct | undefined {

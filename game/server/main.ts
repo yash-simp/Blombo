@@ -17,12 +17,13 @@ const paid = createPaid({
       can: (player) => {
         const p = live.get(player.userId)
         if (!p?.loaded) return "unavailable"
-        return p.lucky > Date.now() ? "already_lucky" : true
+        return p.save.luckyUntil > Date.now() ? "already_lucky" : true
       },
       apply(player) {
         const p = live.get(player.userId)
         if (!p) return false
-        p.lucky = Date.now() + 3 * 60_000
+        p.save.luckyUntil = Date.now() + 3 * 60_000
+        p.dirty = true
         playFor(p.userId, SFX.sparkle)
         sendMe(p)
       },
@@ -64,6 +65,7 @@ api.room.setMaxPlayers(24)
 
 async function join(player: ScriptPlayer): Promise<void> {
   const p = await loadPlayer(player.userId, player.name)
+  if (live.get(player.userId) !== p) return
   assignPlot(p)
   const held = heldRod(p)
   api.players.setHeldItem(p.userId, "right", held || null)
