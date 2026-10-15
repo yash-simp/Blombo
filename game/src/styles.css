@@ -282,13 +282,6 @@ button:focus-visible {
   color: #3a2000;
   -webkit-text-stroke: 0;
 }
-/* Upright phones have room for taller, wider cards between the shell bar and the touch controls. */
-@media (orientation: portrait) {
-  .ui-group.card {
-    width: 1240px !important;
-    max-height: min(1640px, calc(var(--ui-height) - 820px));
-  }
-}
 @keyframes cardIn {
   from {
     scale: 0.85;

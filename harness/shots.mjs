@@ -1,5 +1,5 @@
 // Plays Lantern Lake in the harness (real client + real server code) and saves screenshots in three
-// screen shapes. Usage: node shots.mjs [flow ...] [--only=desktop,portrait,landscape]
+// screen shapes (desktop, phone landscape). Usage: node shots.mjs [flow ...] [--only=desktop,landscape]
 // Shots land in ./shots/<shape>/<nn-name>.png; page errors and missing text keys are reported.
 import { chromium } from "playwright-core"
 import { mkdirSync, writeFileSync } from "node:fs"
@@ -7,7 +7,6 @@ import { mkdirSync, writeFileSync } from "node:fs"
 const BASE = "http://localhost:5199/"
 const SHAPES = {
   desktop: { viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, hasTouch: false },
-  portrait: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true },
   landscape: { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true },
 }
 const args = process.argv.slice(2)

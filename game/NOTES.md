@@ -58,6 +58,11 @@ auto mode starts high and switches to low (shorter distances, no prop shadows, r
 no fireflies) after two 4-second windows under 42 fps, and remembers it per device; Profile card has
 Graphics Auto / High / Low.
 
+## Screen shape
+
+Landscape only (the creator's decision): buildWorld does not call game.enablePortrait(), so phones held
+upright are asked to rotate. The harness checks desktop and phone landscape.
+
 ## Status
 
 - M1 core loop + first minute: done (tests + harness, all three screen shapes).

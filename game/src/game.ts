@@ -16,7 +16,6 @@ export function buildWorld(game: IGameAuthoring): void {
   const spawn = ZONE_DATA[0]?.anchors.spawn as number[] | undefined
   game.setSpawn({ x: spawn?.[0] ?? 0, y: spawn?.[1] ?? 1, z: spawn?.[2] ?? 40 }, spawn?.[3] ?? 0)
   game.setKillPlane(-12)
-  game.enablePortrait()
   game.setEnvironment({
     sky: "cartoon-airbrush-fluffybluesky",
     fog: { density: 1, color: 0xd8ecfb },
