@@ -35,6 +35,29 @@ no paid random items; rewarded videos only when useful (never on a timer or at j
   a local headless Chromium with a mocked engine. `node harness/shots.mjs` plays the first minute and
   opens every card in desktop, phone-portrait and phone-landscape shapes.
 
+## Performance budget (creator's request)
+
+At most ~300k triangles and ~120 draw calls from the spawn camera on phones. Measured with
+`node harness/bench.mjs` (phone portrait 390x844 and landscape 844x390, DPR 2, spawn camera):
+
+| | draw calls | triangles | software frame |
+|---|---|---|---|
+| before (portrait / landscape) | 84 / 105 | 401k / 409k | 528 / 593 ms |
+| high (portrait / landscape) | 67 / 89 | 220k / 265k | 444 / 469 ms |
+| low (portrait / landscape) | 59 / 79 | 187k / 217k | 285 / 284 ms |
+
+The harness renders in software (SwiftShader), so its frame times only compare runs with each other;
+it has no shadow pass. Engine sight overview of the whole island (shadows included): 1.1M tris / ~220
+draws before, 430k / 137 after.
+
+How: props are baked per chunk and material (`src/world/zones.ts`, `merge.ts`): clutter on a 32 m grid
+drawn only near the player, detail/far on a 48 m grid (far = Blender-decimated `__lod` copies, no
+medium props, no lamp glow; halos stand in). Medium props always use their LOD. Terrain is 3x3 chunks
+with a half-resolution `__lod` and skirts. Only large land props cast sun shadows. `src/world/quality.ts`:
+auto mode starts high and switches to low (shorter distances, no prop shadows, render scale 0.75,
+no fireflies) after two 4-second windows under 42 fps, and remembers it per device; Profile card has
+Graphics Auto / High / Low.
+
 ## Status
 
 - M1 (core loop in Lantern Lake + first minute): done and played end to end in tests + harness.

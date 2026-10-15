@@ -11,6 +11,7 @@ from lib import *
 GROUND = 1.0
 EXT = 120.0          # half extent of the zone square
 WATER_R = 150.0      # zone water is a disc; the game rings it with open sea
+TERRAIN_CHUNKS = 3   # terrain chunks per side (each with a half-resolution "__lod")
 
 def blob(cx, cz, r, seed, wobble=0.18, n=48, sx=1.0, sz=1.0):
     rng = random.Random(seed)
@@ -90,11 +91,25 @@ class Zone:
         return float(self.height_grid(np.array([x]), np.array([z]))[0, 0])
 
     # ── terrain mesh ──
-    def terrain(self, step=1.6, ext=EXT):
-        xs = np.arange(-ext, ext + 0.01, step)
-        zs = np.arange(-ext, ext + 0.01, step)
+    def terrain_chunks(self, step=1.6, ext=EXT, n=TERRAIN_CHUNKS):
+        """The terrain in n x n chunks, each at full and half resolution ("__lod"), with skirts that
+        hide the seams where neighbouring chunks show different levels."""
+        out = []
+        size = 2 * ext / n
+        for cj in range(n):
+            for ci in range(n):
+                x0, z0 = -ext + ci * size, -ext + cj * size
+                for suffix, st in (("", step), ("__lod", step * 2)):
+                    part = self.terrain(st, bounds=(x0, z0, x0 + size, z0 + size), skirt=0.9)
+                    if part is not None:
+                        out.append((f"terrain_{ci}_{cj}{suffix}", part))
+        return out
+
+    def terrain(self, step=1.6, ext=EXT, bounds=None, skirt=0.0):
+        x0, z0, x1, z1 = bounds if bounds else (-ext, -ext, ext, ext)
+        xs = np.arange(x0, x1 + 0.01, step)
+        zs = np.arange(z0, z1 + 0.01, step)
         H = self.height_grid(xs, zs)
-        self.H, self.xs, self.zs = H, xs, zs
         bm = bmesh.new()
         col = bm.loops.layers.float_color.new("Col")
         kl = bm.faces.layers.int.new("kind")
@@ -129,11 +144,33 @@ class Zone:
                     f[kl] = KIND_TOON
                     for l in f.loops:
                         l[col] = (*c, 1.0)
+        if not bm.faces:
+            bm.free()
+            return None
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bm.normal_update()
         for f in bm.faces:
             if f.normal.z < 0:
                 f.normal_flip()
+        if skirt > 0:
+            # a short wall hanging under every chunk edge, drawn from both sides
+            edges = [[(i, 0) for i in range(nx)], [(i, nz - 1) for i in range(nx)], [(0, j) for j in range(nz)], [(nx - 1, j) for j in range(nz)]]
+            for line in edges:
+                for (a_, b_) in zip(line[:-1], line[1:]):
+                    va, vb = verts.get(a_), verts.get(b_)
+                    if va is None or vb is None:
+                        continue
+                    c = self.ground_color(xs[a_[0]], zs[a_[1]], H[a_[1], a_[0]] - 0.2, 0.0, rng, None, None)
+                    for back in (False, True):
+                        ta = bm.verts.new(va.co) if back else va
+                        tb = bm.verts.new(vb.co) if back else vb
+                        da = bm.verts.new(va.co - Vector((0, 0, skirt)))
+                        db = bm.verts.new(vb.co - Vector((0, 0, skirt)))
+                        f = bm.faces.new([tb, ta, da, db] if back else [ta, tb, db, da])
+                        f[kl] = KIND_TOON
+                        for l in f.loops:
+                            l[col] = (*c, 1.0)
+            bm.normal_update()
         return Part(bm)
 
     def ground_color(self, x, z, h, slope, rng, path_geom, plaza_geom):
@@ -402,4 +439,104 @@ def waterfall_mesh(name, x, z, top, width=6.0, bottom=-0.1, face=1):
     a.add(Part(bm))
     # foam pool at the bottom
     a.add(cyl(width * 0.55, 0.05, pos=(x, 0.02, z + face * 2.2), color=0xffffff, kind=KIND_GLOW, n=12, bevel=0, scale=(1, 1, 0.6)))
+    return a
+
+
+# ── shared layout pieces ──
+HARBOUR_Z = 60.5   # the coast at the harbour; the pier runs from here out to sea (+Z)
+
+def pin_harbour(walk):
+    """Fix the coastline at the harbour so every zone's pier and boat ride line up (RideView)."""
+    walk = walk.union(rect(-12, 44, 12, HARBOUR_Z))
+    return walk.difference(rect(-12, HARBOUR_Z, 12, 140)).buffer(0.4).buffer(-0.4)
+
+def harbour(z, boat="boat_rowboat"):
+    """The south harbour every zone shares: captain, booth, pier and a moored boat."""
+    z.anchors["arrive"] = [0, GROUND, HARBOUR_Z - 0.5, 0.0]
+    z.anchors["captain"] = [5.5, GROUND, HARBOUR_Z - 2.0, math.pi * 0.9]
+    z.structure("captain_booth", 7.5, HARBOUR_Z - 3.5, -math.pi / 2, clear=3)
+    z.dock(0, HARBOUR_Z - 1.0, 0, HARBOUR_Z + 21.0)
+    z.place(boat, 3.6, HARBOUR_Z + 15.5, 0.1, y=0.0)
+    z.place("barrel", 4.5, HARBOUR_Z - 5.5, 0, y=GROUND)
+    z.place("crate", -4, HARBOUR_Z - 4.5, 0.3, y=GROUND)
+
+def town(z, cz=46.0, plaza=True):
+    """A small square inland from the harbour: the zone's fish market and tackle shop."""
+    z.anchors["market"] = [-11, GROUND, cz - 2.5, math.pi * 0.8]
+    z.anchors["tackle"] = [11, GROUND, cz - 2.5, -math.pi * 0.8]
+    z.structure("market_stall", -11.5, cz - 5.0, math.pi * 0.8 + math.pi, clear=4)
+    z.structure("tackle_shack", 12.5, cz - 6.0, -math.pi * 0.8 + math.pi, clear=5)
+    z.place("crate_fish", -14.5, cz - 3.0, 0.3, y=GROUND)
+    z.place("bucket_worms", 9.0, cz - 3.5, 0, y=GROUND)
+    z.place("rod_rack", 15.5, cz - 1.5, -0.6, y=GROUND)
+    if plaza:
+        z.plazas.append(Point(0, cz).buffer(7.5))
+    return [(LineString([(0, cz), (0, HARBOUR_Z - 1)]), 3.2), (LineString([(-5, cz - 1), (-10, cz - 3)]), 2.6), (LineString([(5, cz - 1), (10, cz - 3)]), 2.6)]
+
+def ice_mesh(z, name="ice", y=GROUND - 0.05, color=0xcfe8f6):
+    """The frozen lake: a flat slab over the water with round fishing holes and snowy rims."""
+    a = Asset(name)
+    rng = random.Random(z.seed + 31)
+    holes = [poly for (poly, _d) in z.water_override]
+    sheet = z.ice.difference(unary_union(holes)) if holes else z.ice
+    geoms = list(sheet.geoms) if hasattr(sheet, "geoms") else [sheet]
+    for g in geoms:
+        g = g.simplify(0.1)
+        bm = bmesh.new()
+        ext = list(g.exterior.coords)[:-1]
+        vs = [bm.verts.new(G(px, y, pz)) for (px, pz) in ext]
+        edges = [bm.edges.new((vs[k], vs[(k + 1) % len(vs)])) for k in range(len(vs))]
+        for hole in g.interiors:
+            hv = [bm.verts.new(G(px, y, pz)) for (px, pz) in list(hole.coords)[:-1]]
+            edges += [bm.edges.new((hv[k], hv[(k + 1) % len(hv)])) for k in range(len(hv))]
+        bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=edges)
+        bm.normal_update()
+        for f in bm.faces:
+            if f.normal.z < 0:
+                f.normal_flip()
+        p = finish_part(bm, color, KIND_TOON, False, rng, 0.05, Matrix.Identity(4))
+        a.add(p)
+    # snowy rims around each hole, and pale cracks on the ice
+    for poly in holes:
+        c = poly.centroid
+        r = math.sqrt(poly.area / math.pi)
+        for k in range(10):
+            ang = k / 10 * math.tau + rng.uniform(-0.1, 0.1)
+            a.add(box((0.7, 0.18 + rng.uniform(0, 0.08), 0.45), pos=(c.x + math.cos(ang) * (r + 0.25), y + 0.05, c.y + math.sin(ang) * (r + 0.25)),
+                      rot=(0, -ang, 0), color=0xf4f9ff, bevel=0.06))
+    for k in range(40):
+        cx, cz = rng.uniform(*z.ice.bounds[0::2]), rng.uniform(*z.ice.bounds[1::2])
+        if not z.ice.buffer(-1.0).contains(Point(cx, cz)) or any(h.buffer(1.2).contains(Point(cx, cz)) for h in holes):
+            continue
+        a.add(box((rng.uniform(1.5, 3.5), 0.012, 0.06), pos=(cx, y + 0.01, cz), rot=(0, rng.uniform(0, math.pi), 0), color=0xffffff, bevel=0))
+    return a
+
+def lava_mesh(z, lines, name="lava", width=2.2):
+    """Glowing lava streams that follow the terrain down the volcano (bright core, darker crust)."""
+    a = Asset(name)
+    for pts in lines:
+        ls = LineString(pts)
+        L = ls.length
+        n = max(2, int(L / 0.9))
+        for (w, color, dy) in ((width + 1.2, 0x3a1a14, 0.04), (width, 0xff6a1a, 0.07), (width * 0.45, 0xffd24a, 0.09)):
+            bm = bmesh.new()
+            left, right = [], []
+            for k in range(n + 1):
+                p = ls.interpolate(L * k / n)
+                q = ls.interpolate(min(L, L * k / n + 0.2))
+                dx, dz = q.x - p.x, q.y - p.y
+                dl = math.hypot(dx, dz) or 1
+                nx, nzz = -dz / dl, dx / dl
+                ww = w * (0.55 + 0.45 * math.sin(k * 0.7) ** 2) * (0.6 if k == 0 else 1.0)
+                for side, arr in ((1, left), (-1, right)):
+                    x, zz = p.x + nx * ww / 2 * side, p.y + nzz * ww / 2 * side
+                    arr.append(bm.verts.new(G(x, max(z.height_at(x, zz), 0.0) + dy, zz)))
+            for k in range(n):
+                bm.faces.new([left[k], right[k], right[k + 1], left[k + 1]])
+            bm.normal_update()
+            for f in bm.faces:
+                if f.normal.z < 0:
+                    f.normal_flip()
+            kind = KIND_TOON if color == 0x3a1a14 else KIND_GLOW
+            a.add(finish_part(bm, color, kind, False, random.Random(z.seed), 0.03, Matrix.Identity(4)))
     return a

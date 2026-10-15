@@ -22,6 +22,7 @@ import type { World } from "./world/zones"
 import { BAITS, REELS, RODS, SPECIES, ZONES, levelOf, tourneyAt } from "../server/rules.ts"
 import { RARITY_CSS, baitName, clock, fishName, goalText, num, questGoal, shortNum, zoneName } from "./ui/format"
 import { currentSky, serverNow } from "./sky"
+import { quality, settings, watchFrame } from "./world/quality"
 
 const viewport = ref<HTMLElement | null>(null)
 const uiStyle = useGameUiScale(viewport)
@@ -169,6 +170,7 @@ onBeforeUnmount(() => {
 })
 
 function frame(g: IGame, dt: number): void {
+  watchFrame(dt)
   const p = g.player.position
   void world.value?.update(p.x, p.z, dt)
   fishing.value?.update(dt)
@@ -303,6 +305,12 @@ function wireEvents(g: IGame): (() => void)[] {
     }),
   ]
 }
+
+// slow phones get the low quality level (shorter draw distances, no prop shadows, lower resolution)
+watch(
+  () => [quality.level, game.value] as const,
+  ([, g]) => g?.setRenderScale(settings().renderScale),
+)
 
 // the coin counter counts up toward the real value
 watch(

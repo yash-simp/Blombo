@@ -85,6 +85,9 @@ player.x = at[0]
 player.z = at[1]
 player.yaw = at[2]
 
+const q0 = q.get("q")
+if (q0 === "low" || q0 === "high") (await import("../game/src/world/quality")).setQualityMode(q0)
+
 await import("../game/server/main.ts")
 const { createApp } = await import("vue")
 const { default: App } = await import("../game/src/App.vue")

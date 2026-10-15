@@ -3,7 +3,6 @@
 import {
   CanvasTexture,
   Group,
-  InstancedMesh,
   Matrix4,
   Mesh,
   type Material,
@@ -17,6 +16,8 @@ import {
   Float32BufferAttribute,
 } from "three"
 import { ZONES } from "../../server/rules.ts"
+import { mergeItems, type MergeItem } from "./merge"
+import { settings } from "./quality"
 import { assetUrl, loadPack } from "../assets/gltf"
 import { cloneRoot, hasRoot, loadPackRoots, loadPropMeta, materialKind, propParts } from "../assets/packs"
 import { packMaterials } from "../assets/materials"
@@ -26,11 +27,24 @@ import { nightFactor } from "../sky"
 
 const Y_AXIS = new Vector3(0, 1, 0)
 const ZONE_KEYS = ["lantern", "willow", "coral", "frost", "ember", "moon"]
-/** Props drawn without a sun shadow (many small copies). */
-const FLAT = new Set(["grass", "grass_dry", "flowers_pink", "flowers_yellow", "flowers_blue", "flowers_glow", "reeds", "cattails", "lilypad", "seaweed", "shells", "mushrooms_red", "mushrooms_glow", "plaza_disc", "buoy"])
-/** Small dense props drawn only within NEAR_RANGE of the player (re-picked twice a second). */
-const NEAR = new Set(["grass", "grass_dry", "flowers_pink", "flowers_yellow", "flowers_blue", "flowers_glow", "mushrooms_red", "mushrooms_glow", "shells", "reeds", "cattails", "lilypad", "rock_s", "bucket_worms", "crate_fish", "stump", "log", "seaweed", "coral_fan", "coral_branch", "coral_brain"])
-const NEAR_RANGE = 48
+/**
+ * Props are baked into one mesh per CHUNK-metre square and material. How far a prop is drawn depends
+ * on its tier (quality.ts sets the distances):
+ * - clutter (grass, flowers, pebbles...): only in chunks near the player, never casting shadows;
+ * - medium (bushes, lamps, fences...): with full detail, no shadows, gone in far chunks;
+ * - everything else is large: full detail and sun shadows nearby, a decimated "__lod" copy far away.
+ */
+/** Clutter chunks (metres); detail and far meshes share a coarser grid so one replaces the other. */
+const CLUTTER_CHUNK = 32
+const CHUNK = 48
+/** Far copies keep their glowing parts only for props whose glow reads from afar (halos stand in for lamps). */
+const FAR_GLOW = new Set(["tree_mushroom", "moon_shrine", "forge_hut", "crystal_ice", "crystal_ember", "crystal_moon", "lighthouse"])
+const CLUTTER = new Set(["grass", "grass_dry", "flowers_pink", "flowers_yellow", "flowers_blue", "flowers_glow", "mushrooms_red", "mushrooms_glow", "shells", "reeds", "cattails", "lilypad", "rock_s", "bucket_worms", "crate_fish", "crate", "barrel", "stump", "log", "seaweed", "coral_fan", "coral_branch", "coral_brain", "lantern_ground", "rock_sand", "sandcastle", "surfboard", "gift_box"])
+const MEDIUM = new Set(["bush_a", "bush_b", "bush_c", "bush_snow", "bush_ember", "bush_moon", "rock_m", "rock_ice", "rock_moon", "lantern_post", "fence_3", "bench", "signpost", "net_rack", "rod_rack", "campfire", "buoy", "umbrella", "torch_tiki", "stone_lantern", "crystal_ice", "crystal_ember", "crystal_moon", "steam_vent", "haybale", "snowman", "well", "notice_board", "pier_post", "plaza_disc"])
+/** Large props over water: water receives no sun shadow, so they never cast. */
+const NO_SHADOW = new Set(["dock_4", "dock_end", "home_plot", "boardwalk_4", "bridge_wood", "stone_bridge", "boat_rowboat", "boat_sailboat", "boat_steamer", "boat_yacht", "plaza_disc"])
+/** Drawn as their own object (animated). */
+const UNMERGED = new Set(["mill_wheel"])
 const HALO_COLORS: Record<string, number> = { torch_tiki: 0xffa040, campfire: 0xff9a40, stone_lantern: 0x9fd8ff, moon_shrine: 0xd8e8ff, buoy: 0xfff0a0, forge_hut: 0xff7a2a }
 
 /** NPC models by anchor name; zone merchants are the zone's own keeper. */
@@ -63,13 +77,25 @@ export interface WorldHost {
   local: { add(object: Object3D, cleanup: () => void): () => void }
 }
 
-interface NearSet {
-  list: [string, number, number, number, number, number][]
-  meshes: { mesh: InstancedMesh; matrix: Matrix4 }[]
+type Tier = "clutter" | "detail" | "far"
+interface Chunk {
+  /** Zone-local centre and size. */
+  x: number
+  z: number
+  size: number
+  meshes: { mesh: Mesh; tier: Tier; casts: boolean }[]
+}
+interface TerrainChunk {
+  x: number
+  z: number
+  full: Mesh
+  far: Mesh | null
 }
 
 export interface ZoneView {
-  near: NearSet[]
+  chunks: Chunk[]
+  terrain: TerrainChunk[]
+  sea: Mesh
   index: number
   group: Group
   data: ZoneData
@@ -137,7 +163,6 @@ export class World {
   readonly pinned = new Set<number>()
   /** Zones whose files failed to load are not retried every frame. */
   private failed = new Set<number>()
-  private readonly temp = new Matrix4()
   private readonly q = new Quaternion()
   private readonly s = new Vector3()
   private readonly p = new Vector3()
@@ -215,17 +240,28 @@ export class World {
     const disposables: { dispose(): void }[] = []
     const water = waterMaterial(WATER_PALETTES[index]!)
     disposables.push(water)
-    // terrain, water, paths and special meshes from the zone pack
-    const terrain = scene.clone(true)
-    terrain.traverse((o) => {
+    // terrain chunks (full + "__lod"), water, paths and special meshes from the zone pack
+    const terrainChunks = new Map<string, TerrainChunk>()
+    const pack = scene.clone(true)
+    pack.traverse((o) => {
       const mesh = o as Mesh
       if (!mesh.isMesh) return
       const kind = materialKind((mesh.material as Material).name)
-      mesh.material = kind === "water" ? water : kind === "glow" ? mats.glow : o.name.startsWith("paths") ? mats.toonFlat : mats.toon
+      const isTerrain = o.name.startsWith("terrain")
+      mesh.material = kind === "water" ? water : kind === "glow" ? mats.glow : o.name.startsWith("paths") || isTerrain ? mats.toonFlat : mats.toon
       if (kind === "water") mesh.renderOrder = 2
+      if (isTerrain) {
+        const key = o.name.replace(/__lod$/, "")
+        mesh.geometry.computeBoundingBox()
+        const box = mesh.geometry.boundingBox!
+        const entry = terrainChunks.get(key) ?? { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, full: mesh, far: null }
+        if (o.name.endsWith("__lod")) entry.far = mesh
+        else entry.full = mesh
+        terrainChunks.set(key, entry)
+      }
     })
-    group.add(terrain)
-    // the open sea around the island
+    group.add(pack)
+    // the open sea around the island (drawn for the nearest island only)
     const ring = new RingGeometry(149.5, 900, 64, 1)
     ring.rotateX(-Math.PI / 2)
     const count = ring.getAttribute("position").count
@@ -236,58 +272,88 @@ export class World {
     sea.renderOrder = 1
     if (this.drawSea) group.add(sea)
     disposables.push(ring)
-    // instanced props
-    const byProp = new Map<string, ZoneData["instances"]>()
-    for (const inst of data.instances) {
-      const list = byProp.get(inst[0])
-      if (list) list.push(inst)
-      else byProp.set(inst[0], [inst])
-    }
+    // props, baked per chunk and material
     const halos = new Billboards(400, "halo")
     const flies = new Billboards(160, "firefly")
     disposables.push(halos, flies)
     let wheel: Object3D | null = null
-    const near: NearSet[] = []
-    for (const [name, list] of byProp) {
+    const buckets = new Map<string, { cx: number; cz: number; size: number; items: Map<string, MergeItem[]> }>()
+    const add = (cx: number, cz: number, size: number, bucket: string, item: MergeItem) => {
+      const key = size + ":" + cx + "," + cz
+      let chunk = buckets.get(key)
+      if (!chunk) buckets.set(key, (chunk = { cx, cz, size, items: new Map() }))
+      const list = chunk.items.get(bucket)
+      if (list) list.push(item)
+      else chunk.items.set(bucket, [item])
+    }
+    const lights = new Map<string, number[][]>()
+    for (const [name, x, y, z, yaw, scale] of data.instances) {
       if (!hasRoot(name)) continue
-      const parts = propParts(name)
-      const nearMeshes: NearSet["meshes"] = []
-      if (NEAR.has(name)) near.push({ list, meshes: nearMeshes })
-      for (const part of parts) {
-        const material =
-          part.kind === "glow" ? mats.glow : part.kind === "glass" ? mats.glass : part.kind === "water" ? water : FLAT.has(name) ? mats.toonFlat : mats.toon
-        const mesh = new InstancedMesh(part.geometry, material, list.length)
-        if (NEAR.has(name)) {
-          mesh.count = 0
-          mesh.frustumCulled = false
-          nearMeshes.push({ mesh, matrix: part.matrix })
-        } else {
-          list.forEach((inst, i) => {
-            this.p.set(inst[1], inst[2], inst[3])
-            this.q.setFromAxisAngle(Y_AXIS, inst[4])
-            this.s.setScalar(inst[5])
-            this.temp.compose(this.p, this.q, this.s).multiply(part.matrix)
-            mesh.setMatrixAt(i, this.temp)
-          })
-          mesh.instanceMatrix.needsUpdate = true
-          mesh.computeBoundingSphere()
+      if (UNMERGED.has(name)) {
+        const obj = cloneRoot(name)
+        if (obj) {
+          obj.position.set(x, y, z)
+          obj.rotation.order = "YXZ"
+          obj.rotation.y = yaw
+          obj.scale.setScalar(scale)
+          group.add(obj)
+          wheel = obj
         }
-        if (part.kind === "water") mesh.renderOrder = 2
+        continue
+      }
+      const clutter = CLUTTER.has(name)
+      const medium = MEDIUM.has(name)
+      const size = clutter ? CLUTTER_CHUNK : CHUNK
+      const cx = (Math.floor(x / size) + 0.5) * size
+      const cz = (Math.floor(z / size) + 0.5) * size
+      this.p.set(x - cx, y, z - cz)
+      this.q.setFromAxisAngle(Y_AXIS, yaw)
+      this.s.setScalar(scale)
+      const place = new Matrix4().compose(this.p, this.q, this.s)
+      // medium props are small and many: their decimated copy reads the same at any distance
+      const shown = medium && hasRoot(name + "__lod") ? name + "__lod" : name
+      for (const part of propParts(shown)) {
+        const material = part.kind === "toon" ? (clutter || medium || NO_SHADOW.has(name) ? "flat" : "toon") : part.kind
+        add(cx, cz, size, (clutter ? "clutter" : "detail") + "|" + material, { geometry: part.geometry, matrix: new Matrix4().multiplyMatrices(place, part.matrix) })
+      }
+      if (!clutter && !medium) {
+        const lod = hasRoot(name + "__lod") ? name + "__lod" : name
+        for (const part of propParts(lod)) {
+          if (part.kind === "glow" && !FAR_GLOW.has(name)) continue
+          add(cx, cz, size, "far|" + (part.kind === "toon" ? "flat" : part.kind), { geometry: part.geometry, matrix: new Matrix4().multiplyMatrices(place, part.matrix) })
+        }
+      }
+      if (!lights.has(name)) {
+        const anchors = meta[name]?.anchors ?? {}
+        lights.set(name, Object.entries(anchors).filter(([k, a]) => k.startsWith("light") && Array.isArray(a)).map(([, a]) => a as number[]))
+      }
+      // halos at the prop's light anchors
+      for (const a of lights.get(name)!) {
+        const c = Math.cos(yaw)
+        const sn = Math.sin(yaw)
+        const lx = (a[0] ?? 0) * scale
+        const lz = (a[2] ?? 0) * scale
+        halos.add(center.x + x + lx * c + lz * sn, y + (a[1] ?? 0) * scale, center.z + z - lx * sn + lz * c, name === "campfire" ? 2.6 : 1.5, HALO_COLORS[name] ?? 0xffc864)
+      }
+    }
+    const chunks: Chunk[] = []
+    for (const b of buckets.values()) {
+      const chunk: Chunk = { x: b.cx, z: b.cz, size: b.size, meshes: [] }
+      for (const [bucket, items] of b.items) {
+        const geometry = mergeItems(items)
+        if (!geometry) continue
+        disposables.push(geometry)
+        const [tier, kind] = bucket.split("|") as [Tier, string]
+        const material = kind === "glow" ? mats.glow : kind === "glass" ? mats.glass : kind === "water" ? water : kind === "toon" ? mats.toon : mats.toonFlat
+        const mesh = new Mesh(geometry, material)
+        mesh.name = "chunk:" + bucket
+        mesh.position.set(b.cx, 0, b.cz)
+        if (kind === "water") mesh.renderOrder = 2
+        mesh.visible = tier === "detail"
         group.add(mesh)
-        disposables.push(mesh)
+        chunk.meshes.push({ mesh, tier, casts: kind === "toon" })
       }
-      // halos at the props' light anchors
-      const anchors = meta[name]?.anchors ?? {}
-      for (const [anchorName, a] of Object.entries(anchors)) {
-        if (!anchorName.startsWith("light") || !Array.isArray(a)) continue
-        for (const inst of list) {
-          const c = Math.cos(inst[4])
-          const s = Math.sin(inst[4])
-          const lx = (a[0] ?? 0) * inst[5]
-          const lz = (a[2] ?? 0) * inst[5]
-          halos.add(center.x + inst[1] + lx * c + lz * s, inst[2] + (a[1] ?? 0) * inst[5], center.z + inst[3] - lx * s + lz * c, name === "campfire" ? 2.6 : 1.5, HALO_COLORS[name] ?? 0xffc864)
-        }
-      }
+      chunks.push(chunk)
     }
     // fireflies over the meadows and the shore
     const rng = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
@@ -338,52 +404,52 @@ export class World {
         }
       }
     })
-    void wheel
-    return { index, group, data, npcs, halos, flies, wheel, release, near }
+    return { index, group, data, npcs, halos, flies, wheel, release, chunks, terrain: [...terrainChunks.values()], sea }
   }
 
-  private nearTimer = 0
-  /** Re-picks the nearby copies of small props. */
-  private refreshNear(view: ZoneView, px: number, pz: number): void {
+  private lodTimer = 0
+  /** A point that overrides the player for level of detail (the boat during a ride). */
+  focus: Vector3 | null = null
+  /** Shows each chunk's tiers by its distance from the player and the quality setting. */
+  private refreshChunks(view: ZoneView, px: number, pz: number): void {
     const c = ZONES[view.index]!
+    const q = settings()
     const lx = px - c.x
     const lz = pz - c.z
-    for (const set of view.near) {
-      let n = 0
-      for (const inst of set.list) {
-        const dx = inst[1] - lx
-        const dz = inst[3] - lz
-        if (dx * dx + dz * dz > NEAR_RANGE * NEAR_RANGE) continue
-        this.p.set(inst[1], inst[2], inst[3])
-        this.q.setFromAxisAngle(Y_AXIS, inst[4])
-        this.s.setScalar(inst[5])
-        for (const m of set.meshes) {
-          this.temp.compose(this.p, this.q, this.s).multiply(m.matrix)
-          m.mesh.setMatrixAt(n, this.temp)
-        }
-        n++
+    for (const chunk of view.chunks) {
+      const d = Math.max(0, Math.hypot(chunk.x - lx, chunk.z - lz) - chunk.size * 0.71)
+      const detail = d < q.detail
+      for (const m of chunk.meshes) {
+        m.mesh.visible = m.tier === "clutter" ? d < q.clutter : m.tier === "detail" ? detail : !detail
+        if (m.casts) m.mesh.material = q.shadows ? packMaterials().toon : packMaterials().toonFlat
       }
-      for (const m of set.meshes) {
-        m.mesh.count = n
-        m.mesh.instanceMatrix.needsUpdate = true
-      }
+    }
+    for (const t of view.terrain) {
+      const d = Math.max(0, Math.hypot(t.x - lx, t.z - lz) - 57)
+      const full = !t.far || d < q.terrain
+      t.full.visible = full
+      if (t.far) t.far.visible = !full
     }
   }
 
   private animate(px: number, pz: number, dt: number): void {
     const t = performance.now() / 1000
-    this.nearTimer -= dt
-    if (this.nearTimer <= 0) {
-      this.nearTimer = 0.5
-      for (const view of this.zones.values()) this.refreshNear(view, px, pz)
-    }
+    this.lodTimer -= dt
+    const fx = this.focus?.x ?? px
+    const fz = this.focus?.z ?? pz
+    const nearest = this.nearestZone(fx, fz)
+    for (const view of this.zones.values()) view.sea.visible = this.drawSea && view.index === nearest
+    for (const view of this.zones.values()) if (view.wheel) view.wheel.rotation.x -= dt * 0.9
     const night = nightFactor()
     waterUniforms.night.value = night
     waterUniforms.light.value = 1 - night * 0.45
+    const refreshed = this.lodTimer <= 0
+    if (refreshed) this.lodTimer = 0.25
     for (const view of this.zones.values()) {
       view.halos.intensity.value = 0.25 + night * 1.05
       view.flies.intensity.value = night * 1.2
-      view.flies.mesh.visible = night > 0.05
+      view.flies.mesh.visible = night > 0.05 && settings().fireflies
+      if (refreshed) this.refreshChunks(view, fx, fz)
       for (const npc of view.npcs) {
         const dx = px - npc.base.x
         const dz = pz - npc.base.z

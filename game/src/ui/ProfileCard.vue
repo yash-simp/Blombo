@@ -7,6 +7,8 @@ import Icon from "./Icon.vue"
 import { store } from "../net"
 import { ACHIEVEMENTS, ZONES, levelOf } from "../../server/rules.ts"
 import { num } from "./format"
+import { quality, setQualityMode, type QualityMode } from "../world/quality"
+const MODES: QualityMode[] = ["auto", "high", "low"]
 
 const props = defineProps<{ game: IGame }>()
 const emit = defineEmits<{ close: [] }>()
@@ -42,6 +44,12 @@ function equip(id: string): void {
       </div>
       <p class="stats">{{ t("profile.stats", { c: num(store.me?.catches ?? 0), p: num(store.me?.perfect ?? 0), s: num(store.me?.sold ?? 0) }) }}</p>
       <p v-if="(store.me?.streak ?? 0) > 0" class="stats">{{ t("profile.streak", { n: store.me?.streak ?? 0 }) }}</p>
+      <div class="gfx">
+        <span>{{ t("profile.graphics") }}</span>
+        <button v-for="m in MODES" :key="m" type="button" class="pill" :class="{ 'pill--blue': quality.mode === m }" @click="setQualityMode(m)">
+          {{ t("profile.q_" + m) }}
+        </button>
+      </div>
       <h2 class="sub">{{ t("profile.titles") }}</h2>
       <article class="row" :class="{ sel: !store.me?.title }">
         <Icon name="star" class="row__icon" />
@@ -115,6 +123,15 @@ function equip(id: string): void {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #4fb0ff, #9ff0ff);
+}
+.gfx {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.gfx .pill:not(.pill--blue) {
+  background: #2b5a80;
 }
 .stats {
   margin: 0;

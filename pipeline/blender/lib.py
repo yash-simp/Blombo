@@ -126,7 +126,7 @@ def box(size, pos=(0, 0, 0), rot=(0, 0, 0), color=0xffffff, bevel=0.04, segs=1, 
         for v in bm.verts:
             if abs(v.co.z - top) < 1e-6:
                 v.co.x *= taper[0]; v.co.y *= taper[1]
-    if bevel > 0 and min(w, h, d) >= 0.09:
+    if bevel > 0 and min(w, h, d) >= 0.13:
         bv = min(bevel, w * 0.45, h * 0.45, d * 0.45)
         bmesh.ops.bevel(bm, geom=list(bm.edges), offset=bv, segments=segs, profile=0.5, affect="EDGES", clamp_overlap=True)
     return _finish_part(bm, color, kind, smooth, random.Random(seed), var, xform(pos, rot), grad)

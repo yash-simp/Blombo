@@ -389,5 +389,9 @@
  "travel.sailing": "Sailing to {zone}",
  "travel.locked_level": "Reach Lv {lv}",
  "profile.streak": "Daily streak: {n}",
- "profile.titles": "Titles"
+ "profile.titles": "Titles",
+ "profile.graphics": "Graphics",
+ "profile.q_auto": "Auto",
+ "profile.q_high": "High",
+ "profile.q_low": "Low"
 }

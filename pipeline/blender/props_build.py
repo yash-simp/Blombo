@@ -40,7 +40,7 @@ def post(a, x, z, y0, y1, r=0.13, color=WOOD_D, seed=0, rope=None):
     a.add(cyl(r * 1.08, 0.04, pos=(x, y1 - 0.02, z), r2=r * 0.7, color=mix(hexrgb(color), (0, 0, 0), 0.2), n=8, bevel=0, seed=seed + 1))
     if rope is not None:
         for k in range(2):
-            a.add(cyl(r + 0.025, 0.05, pos=(x, rope + k * 0.07, z), color=ROPE, n=8, bevel=0.01, seed=seed + 2 + k, smooth=True))
+            a.add(cyl(r + 0.025, 0.05, pos=(x, rope + k * 0.07, z), color=ROPE, n=7, bevel=0.0, seed=seed + 2 + k))
 
 def lantern(a, x, y, z, color=GLOW_WARM, frame=WOOD_DD, size=1.0, seed=0, roof=GOLD):
     """A hanging/standing box lantern whose BASE is at y."""

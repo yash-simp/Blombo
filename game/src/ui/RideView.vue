@@ -100,6 +100,7 @@ onBeforeUnmount(() => {
   unsubscribe?.()
   release?.()
   props.world.pinned.delete(props.ride.to)
+  props.world.focus = null
   props.game.setCameraMode("follow")
   props.game.avatars.local?.show("ride")
 })
@@ -127,6 +128,7 @@ function frame(dt: number): void {
   }
   const time = performance.now() / 1000
   boat.position.set(pos.x, Math.sin(time * 2.1) * 0.07, pos.z)
+  props.world.focus = boat.position
   boat.rotation.set(Math.sin(time * 1.7) * 0.03, Math.atan2(-fwd.x, -fwd.z), Math.sin(time * 1.3) * 0.05, "YXZ")
   // the wake: foam rings dropped behind the stern that spread and fade
   wakeTimer -= dt

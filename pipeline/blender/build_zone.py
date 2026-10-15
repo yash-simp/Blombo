@@ -19,15 +19,24 @@ for m in (props_nature.PROPS, props_build.PROPS):
     for n, spec in m.items():
         props_meta[n] = {"collider": spec.get("collider")}
 coll = bpy.data.collections.new("zone"); bpy.context.scene.collection.children.link(coll)
-terrain = Asset("terrain"); terrain.add(zone.terrain()); t_obj = terrain.build(ao=False, sharp_angle=30, collection=coll); t_obj.name = "terrain"
+objs = []
+t_objs = []
+for name, part in zone.terrain_chunks():
+    a = Asset(name); a.add(part); o = a.build(ao=False, sharp_angle=30, collection=coll); o.name = name
+    objs.append(o)
+    if not name.endswith("__lod"):
+        t_objs.append(o)
+    else:
+        o.hide_render = True
 water = Asset("water"); water.add(zone.water()); w_obj = water.build(ao=False, collection=coll); w_obj.name = "water"
-objs = [t_obj, w_obj]
+objs.append(w_obj)
 if zone.paths:
     zone.special.insert(0, ribbon_mesh(zone, 'paths'))
 for sp in zone.special:
     o = sp.build(ao=False, collection=coll); o.name = sp.name; objs.append(o)
 zone.export("zone_" + key, objs, props_meta, OUT)
-print(f"zone {key}: {len(zone.instances)} instances, {len(zone.colliders)} colliders, terrain tris {tri_count([t_obj])}, water tris {tri_count([w_obj])}, {time.time() - t:.1f}s")
+lod_tris = tri_count([o for o in objs if o.name.endswith("__lod")])
+print(f"zone {key}: {len(zone.instances)} instances, {len(zone.colliders)} colliders, terrain tris {tri_count(t_objs)} (far {lod_tris}), water tris {tri_count([w_obj])}, {time.time() - t:.1f}s")
 counts = {}
 for inst in zone.instances:
     counts[inst[0]] = counts.get(inst[0], 0) + 1

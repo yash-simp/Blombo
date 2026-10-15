@@ -10,7 +10,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 668
+  "tris": 668,
+  "lod": 157
  },
  "tree_round_b": {
   "collider": [
@@ -23,7 +24,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 668
+  "tris": 668,
+  "lod": 157
  },
  "tree_round_c": {
   "collider": [
@@ -36,7 +38,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 668
+  "tris": 668,
+  "lod": 158
  },
  "tree_pine_a": {
   "collider": [
@@ -49,7 +52,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 396
+  "tris": 396,
+  "lod": 160
  },
  "tree_pine_b": {
   "collider": [
@@ -62,7 +66,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 396
+  "tris": 396,
+  "lod": 160
  },
  "tree_snowpine_a": {
   "collider": [
@@ -75,7 +80,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 396
+  "tris": 396,
+  "lod": 160
  },
  "tree_snowpine_b": {
   "collider": [
@@ -88,7 +94,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 396
+  "tris": 396,
+  "lod": 160
  },
  "tree_willow": {
   "collider": [
@@ -101,7 +108,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 808
+  "tris": 808,
+  "lod": 156
  },
  "tree_palm": {
   "collider": [
@@ -114,7 +122,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 624
+  "tris": 624,
+  "lod": 158
  },
  "tree_ember": {
   "collider": [
@@ -127,7 +136,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 720
+  "tris": 720,
+  "lod": 145
  },
  "tree_mushroom": {
   "collider": [
@@ -140,37 +150,44 @@
    ]
   ],
   "anchors": {},
-  "tris": 648
+  "tris": 648,
+  "lod": 149
  },
  "bush_a": {
   "collider": null,
   "anchors": {},
-  "tris": 400
+  "tris": 400,
+  "lod": 160
  },
  "bush_b": {
   "collider": null,
   "anchors": {},
-  "tris": 600
+  "tris": 600,
+  "lod": 150
  },
  "bush_c": {
   "collider": null,
   "anchors": {},
-  "tris": 600
+  "tris": 600,
+  "lod": 150
  },
  "bush_snow": {
   "collider": null,
   "anchors": {},
-  "tris": 400
+  "tris": 400,
+  "lod": 160
  },
  "bush_ember": {
   "collider": null,
   "anchors": {},
-  "tris": 600
+  "tris": 600,
+  "lod": 150
  },
  "bush_moon": {
   "collider": null,
   "anchors": {},
-  "tris": 600
+  "tris": 600,
+  "lod": 150
  },
  "rock_s": {
   "collider": null,
@@ -188,7 +205,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 240
+  "tris": 240,
+  "lod": 120
  },
  "rock_l": {
   "collider": [
@@ -201,7 +219,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 320
+  "tris": 320,
+  "lod": 160
  },
  "rock_sand": {
   "collider": null,
@@ -219,7 +238,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 240
+  "tris": 240,
+  "lod": 120
  },
  "rock_basalt": {
   "collider": [
@@ -232,7 +252,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 288
+  "tris": 288,
+  "lod": 140
  },
  "rock_moon": {
   "collider": [
@@ -245,7 +266,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 240
+  "tris": 240,
+  "lod": 120
  },
  "reeds": {
   "collider": null,
@@ -260,22 +282,26 @@
  "flowers_pink": {
   "collider": null,
   "anchors": {},
-  "tris": 306
+  "tris": 306,
+  "lod": 152
  },
  "flowers_yellow": {
   "collider": null,
   "anchors": {},
-  "tris": 306
+  "tris": 306,
+  "lod": 152
  },
  "flowers_blue": {
   "collider": null,
   "anchors": {},
-  "tris": 306
+  "tris": 306,
+  "lod": 152
  },
  "flowers_glow": {
   "collider": null,
   "anchors": {},
-  "tris": 306
+  "tris": 306,
+  "lod": 153
  },
  "grass": {
   "collider": null,
@@ -318,12 +344,14 @@
  "mushrooms_red": {
   "collider": null,
   "anchors": {},
-  "tris": 784
+  "tris": 784,
+  "lod": 144
  },
  "mushrooms_glow": {
   "collider": null,
   "anchors": {},
-  "tris": 464
+  "tris": 464,
+  "lod": 160
  },
  "crystal_ice": {
   "collider": [
@@ -367,7 +395,8 @@
  "coral_branch": {
   "collider": null,
   "anchors": {},
-  "tris": 400
+  "tris": 400,
+  "lod": 160
  },
  "coral_fan": {
   "collider": null,
@@ -392,7 +421,8 @@
  "cattails": {
   "collider": null,
   "anchors": {},
-  "tris": 406
+  "tris": 238,
+  "lod": 118
  },
  "lantern_post": {
   "collider": [
@@ -411,7 +441,8 @@
     0
    ]
   },
-  "tris": 312
+  "tris": 248,
+  "lod": 124
  },
  "lantern_ground": {
   "collider": null,
@@ -453,7 +484,8 @@
     0
    ]
   },
-  "tris": 1484
+  "tris": 1484,
+  "lod": 251
  },
  "torch_tiki": {
   "collider": [
@@ -491,12 +523,14 @@
     0
    ]
   },
-  "tris": 264
+  "tris": 264,
+  "lod": 132
  },
  "dock_4": {
   "collider": null,
   "anchors": {},
-  "tris": 1008
+  "tris": 656,
+  "lod": 156
  },
  "dock_end": {
   "collider": null,
@@ -507,12 +541,13 @@
     -1.45
    ]
   },
-  "tris": 1196
+  "tris": 812,
+  "lod": 146
  },
  "pier_post": {
   "collider": null,
   "anchors": {},
-  "tris": 172
+  "tris": 100
  },
  "buoy": {
   "collider": null,
@@ -543,7 +578,7 @@
    ]
   ],
   "anchors": {},
-  "tris": 160
+  "tris": 96
  },
  "crate": {
   "collider": [
@@ -573,7 +608,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 248
+  "tris": 248,
+  "lod": 124
  },
  "barrel": {
   "collider": [
@@ -606,7 +642,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 402
+  "tris": 306,
+  "lod": 152
  },
  "rod_rack": {
   "collider": [
@@ -621,7 +658,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 446
+  "tris": 318,
+  "lod": 158
  },
  "signpost": {
   "collider": [
@@ -647,7 +685,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 1126
+  "tris": 870,
+  "lod": 156
  },
  "campfire": {
   "collider": null,
@@ -658,7 +697,8 @@
     0
    ]
   },
-  "tris": 242
+  "tris": 242,
+  "lod": 120
  },
  "haybale": {
   "collider": [
@@ -694,7 +734,8 @@
  "sandcastle": {
   "collider": null,
   "anchors": {},
-  "tris": 414
+  "tris": 414,
+  "lod": 159
  },
  "snowman": {
   "collider": [
@@ -707,7 +748,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 570
+  "tris": 570,
+  "lod": 155
  },
  "cottage_a": {
   "collider": [
@@ -728,7 +770,8 @@
     3.1
    ]
   },
-  "tris": 3984
+  "tris": 3152,
+  "lod": 460
  },
  "cottage_b": {
   "collider": [
@@ -749,7 +792,8 @@
     3.0
    ]
   },
-  "tris": 3476
+  "tris": 2676,
+  "lod": 394
  },
  "cottage_c": {
   "collider": [
@@ -770,7 +814,8 @@
     3.1
    ]
   },
-  "tris": 3984
+  "tris": 3152,
+  "lod": 457
  },
  "market_stall": {
   "collider": [
@@ -796,7 +841,8 @@
     -1.4
    ]
   },
-  "tris": 1292
+  "tris": 1260,
+  "lod": 199
  },
  "tackle_shack": {
   "collider": [
@@ -822,7 +868,8 @@
     2.8
    ]
   },
-  "tris": 1508
+  "tris": 1412,
+  "lod": 207
  },
  "captain_booth": {
   "collider": [
@@ -848,7 +895,8 @@
     1.9
    ]
   },
-  "tris": 806
+  "tris": 518,
+  "lod": 155
  },
  "tourney_stage": {
   "collider": [
@@ -914,7 +962,8 @@
     -0.6
    ]
   },
-  "tris": 2608
+  "tris": 2608,
+  "lod": 445
  },
  "notice_board": {
   "collider": [
@@ -929,7 +978,7 @@
    ]
   ],
   "anchors": {},
-  "tris": 236
+  "tris": 204
  },
  "aquarium": {
   "collider": [
@@ -950,7 +999,8 @@
     0
    ]
   },
-  "tris": 454
+  "tris": 422,
+  "lod": 158
  },
  "home_plot": {
   "collider": null,
@@ -976,12 +1026,14 @@
     -1.0
    ]
   },
-  "tris": 944
+  "tris": 720,
+  "lod": 140
  },
  "boardwalk_4": {
   "collider": null,
   "anchors": {},
-  "tris": 352
+  "tris": 352,
+  "lod": 160
  },
  "mill_house": {
   "collider": [
@@ -1002,12 +1054,14 @@
     0
    ]
   },
-  "tris": 3760
+  "tris": 3024,
+  "lod": 445
  },
  "mill_wheel": {
   "collider": null,
   "anchors": {},
-  "tris": 1468
+  "tris": 1468,
+  "lod": 244
  },
  "stone_bridge": {
   "collider": null,
@@ -1033,7 +1087,8 @@
     1.15
    ]
   },
-  "tris": 2416
+  "tris": 2416,
+  "lod": 402
  },
  "beach_hut": {
   "collider": [
@@ -1048,7 +1103,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 1372
+  "tris": 1340,
+  "lod": 213
  },
  "lifeguard_tower": {
   "collider": [
@@ -1063,7 +1119,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 416
+  "tris": 384,
+  "lod": 160
  },
  "igloo": {
   "collider": [
@@ -1076,7 +1133,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 3008
+  "tris": 3008,
+  "lod": 540
  },
  "ice_hut": {
   "collider": [
@@ -1091,7 +1149,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 1064
+  "tris": 680,
+  "lod": 142
  },
  "forge_hut": {
   "collider": [
@@ -1112,7 +1171,8 @@
     2.1
    ]
   },
-  "tris": 2804
+  "tris": 1236,
+  "lod": 160
  },
  "moon_shrine": {
   "collider": [
@@ -1142,7 +1202,8 @@
     0
    ]
   },
-  "tris": 816
+  "tris": 816,
+  "lod": 153
  },
  "basalt_columns": {
   "collider": [
@@ -1155,7 +1216,8 @@
    ]
   ],
   "anchors": {},
-  "tris": 396
+  "tris": 396,
+  "lod": 160
  },
  "steam_vent": {
   "collider": null,
@@ -1187,12 +1249,14 @@
     -1.4
    ]
   },
-  "tris": 1352
+  "tris": 1288,
+  "lod": 210
  },
  "plaza_disc": {
   "collider": null,
   "anchors": {},
-  "tris": 1552
+  "tris": 1552,
+  "lod": 147
  },
  "fountain": {
   "collider": [
@@ -1211,6 +1275,7 @@
     0
    ]
   },
-  "tris": 2222
+  "tris": 1646,
+  "lod": 294
  }
 }

@@ -251,8 +251,8 @@ def flowers(name, colors, seed, n=6, glow=False):
         h = rng.uniform(0.25, 0.5)
         a.add(tube([(x, 0, z), (x + rng.uniform(-0.05, 0.05), h, z)], 0.015, color=0x4f8f35, n=3, cap=False, seed=seed + i))
         c = colors[i % len(colors)]
-        a.add(sphere(0.085, pos=(x, h, z), scale=(1, 0.38, 1), rot=(0, rng.uniform(0, 1), 0), color=c, sub=1, smooth=False, seed=seed + 10 * i, kind=KIND_GLOW if glow else KIND_TOON))
-        a.add(sphere(0.035, pos=(x, h + 0.025, z), color=0xffe066, sub=1, smooth=False, kind=KIND_GLOW if glow else KIND_TOON))
+        a.add(sphere(0.09, pos=(x, h, z), scale=(1, 0.38, 1), rot=(0, rng.uniform(0, 1), 0), color=c, sub=0, smooth=False, seed=seed + 10 * i, kind=KIND_GLOW if glow else KIND_TOON))
+        a.add(sphere(0.04, pos=(x, h + 0.025, z), color=0xffe066, sub=0, smooth=False, kind=KIND_GLOW if glow else KIND_TOON))
     for i in range(5):
         ang = rng.uniform(0, math.tau)
         a.add(blade((math.cos(ang) * 0.2, 0, math.sin(ang) * 0.2), 0.3, 0.06, lean=(math.cos(ang) * 0.1, math.sin(ang) * 0.1), color=0x5aa143, seed=seed + 80 + i))
@@ -414,6 +414,6 @@ def _():
         x, z = rng.uniform(-0.25, 0.25), rng.uniform(-0.25, 0.25)
         h = rng.uniform(1.1, 1.6)
         a.add(tube([(x, -0.3, z), (x + rng.uniform(-0.1, 0.1), h, z)], 0.018, color=0x6f9e45, n=4, cap=False, seed=1950 + i))
-        a.add(cyl(0.05, 0.28, pos=(x, h - 0.36, z), color=0x7a4a28, n=6, bevel=0.02, seed=1960 + i))
+        a.add(cyl(0.05, 0.28, pos=(x, h - 0.36, z), color=0x7a4a28, n=6, bevel=0.0, seed=1960 + i))
         a.add(blade((x, -0.3, z), h * 0.8, 0.06, lean=(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3)), color=0x7aa84c, seed=1970 + i))
     return a

@@ -1,7 +1,7 @@
 // Harness stand-in for src/game.ts: a plain three WebGPU renderer (WebGL2 backend), a follow camera,
 // a blocky stand-in avatar holding the real rod model, and a fake IGame wired to the api shim, so the
 // real HUD, World and fishing controller run unchanged.
-import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Scene, SphereGeometry, BackSide, Vector3 } from "three"
+import { BoxGeometry, Color, Frustum, Matrix4, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Scene, SphereGeometry, BackSide, Vector3 } from "three"
 import { MeshBasicNodeMaterial, WebGPURenderer } from "three/webgpu"
 import { color, mix, positionLocal, smoothstep } from "three/tsl"
 import { World } from "../../game/src/world/zones"
@@ -131,6 +131,7 @@ export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElem
     hands: { play: () => {}, stop: () => {}, mode: "auto" },
     setCameraMode: (mode: "follow" | "manual") => void (cameraMode = mode),
     setAimPitch: () => {},
+    setRenderScale: (k: number) => renderer.setPixelRatio(Math.min(2, window.devicePixelRatio) * k),
     configureTouchControls: () => {},
     bindAction(o: { code: string; button?: HTMLButtonElement; onActivate?: () => void; onRelease?: () => void; onCancel?: () => void }) {
       const down = (e: KeyboardEvent) => {
@@ -203,6 +204,58 @@ export async function startGame(canvas: HTMLCanvasElement, _touchLayer: HTMLElem
   }
   window.setInterval(tick, 16)
   ;(window as any).__harness.render = render
+  /** Renders `n` frames back to back (each forced to finish) and reports time, draw calls and triangles. */
+  ;(window as any).__harness.bench = (n = 10) => {
+    const gl = (renderer as any).backend?.gl as WebGL2RenderingContext | undefined
+    const px = new Uint8Array(4)
+    render()
+    gl?.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px)
+    const t0 = performance.now()
+    for (let i = 0; i < n; i++) {
+      tick()
+      render()
+      gl?.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px)
+    }
+    const ms = (performance.now() - t0) / n
+    ;(renderer as any).info.reset()
+    render()
+    const info = (renderer as any).info.render
+    let shadowTris = 0
+    let meshes = 0
+    scene.traverse((o: any) => {
+      if (!o.isMesh || !o.visible) return
+      meshes++
+      if (o.castShadow) {
+        const g = o.geometry
+        const tris = (g.index ? g.index.count : g.attributes.position.count) / 3
+        shadowTris += tris * (o.isInstancedMesh ? o.count : 1)
+      }
+    })
+    // what the draws are: frustum-visible meshes by kind
+    const frustum = new Frustum().setFromProjectionMatrix(new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))
+    const kinds: Record<string, number> = {}
+    scene.updateMatrixWorld()
+    scene.traverseVisible((o: any) => {
+      if (!(o.isMesh || o.isSprite)) return
+      if (o.isMesh && o.geometry && o.frustumCulled !== false) {
+        if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere()
+        const sphere = o.geometry.boundingSphere.clone().applyMatrix4(o.matrixWorld)
+        if (!frustum.intersectsSphere(sphere)) return
+      }
+      let k = o.isSprite ? "sprite" : o.isInstancedMesh ? "instanced" : "mesh"
+      let p = o
+      while (p && !p.name) p = p.parent
+      const nm = (p?.name ?? "").startsWith("chunk:") ? p.name : (p?.name ?? "").replace(/_\d+.*$/, "")
+      k += ":" + (nm || o.material?.name || "?")
+      kinds[k] = (kinds[k] ?? 0) + 1
+      if (o.isMesh) {
+        const g = o.geometry
+        const tris = ((g.index ? g.index.count : g.attributes.position.count) / 3) * (o.isInstancedMesh ? o.count : 1)
+        kinds["tris " + k] = (kinds["tris " + k] ?? 0) + Math.round(tris)
+      }
+    })
+    return { kinds, msPerFrame: Math.round(ms), fps: +(1000 / ms).toFixed(2), drawCalls: info.drawCalls, triangles: info.triangles, shadowCasterTris: Math.round(shadowTris), visibleMeshes: meshes, pixels: [canvas.width, canvas.height] }
+  }
   await world.init()
   await client.join()
   render()

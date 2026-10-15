@@ -199,7 +199,7 @@ test("every name the game shows has text", () => {
     for (const m of source.matchAll(/toast\(p, ["']([a-z_]+\.[a-z0-9_.]+)["']/g)) need(m[1]!)
     for (const m of source.matchAll(/"CastNo", "([a-z_]+)"/g)) need("toast." + m[1]!)
   }
-  assert.deepEqual([...new Set(missing)].filter((k) => !k.endsWith(".")), [])
+  assert.deepEqual([...new Set(missing)].filter((k) => !k.endsWith(".") && !k.endsWith("_")), [])
 })
 
 test("the Blogem shop sells no random items", () => {
